@@ -1,0 +1,5 @@
+- Xây dựng (lập trình) màn hình quản lý đăng nhập xử lý đăng nhập với tài khoản là nhân viên (MANV, MATKHAU) - Xây dựng (lập trình) màn hình quản lý lớp học - Xây dựng (lập trình) màn hình sinh viên của từng lớp (lưu ý chỉ được 
+phép thay đổi thông tin của những sinh viên thuộc lớp mà nhân viên đó 
+quản lý) 
+- Xây dựng (lập trình) nhập bảng điểm của từng sinh viên, trong đó cột điểm thi sẽ được mã hóa bằng chính Public Key của nhân viên (đã đăng 
+nhập) 
