@@ -1,5 +1,9 @@
-- Xây dựng (lập trình) màn hình quản lý đăng nhập xử lý đăng nhập với tài khoản là nhân viên (MANV, MATKHAU) - Xây dựng (lập trình) màn hình quản lý lớp học - Xây dựng (lập trình) màn hình sinh viên của từng lớp (lưu ý chỉ được 
-phép thay đổi thông tin của những sinh viên thuộc lớp mà nhân viên đó 
-quản lý) 
-- Xây dựng (lập trình) nhập bảng điểm của từng sinh viên, trong đó cột điểm thi sẽ được mã hóa bằng chính Public Key của nhân viên (đã đăng 
-nhập) 
+                    KẾT NỐI BACKEND VỚI MSSQL
+B0: cài requirements -> pip install -r requirements.txt
+B1: Tạo login như tài khoản .env (tạo khác cũng được, nhưng mà nhớ đổi luôn trong env)
+B2: Cấp quyền cho user 
+    Security -> Login -> <user> -> General -> default database chọn cái QLSVNhom
+                                -> User Mapping -> chọn QLSVNhom và set db_owner
+
+B3: chạy thử file test_sqlserver -> py test_sqlserver.py 
+B4: Mở code chạy thử -> py manage.py showmigrations -> chạy được thì ok
