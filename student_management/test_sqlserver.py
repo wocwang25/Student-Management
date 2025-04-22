@@ -4,9 +4,9 @@ try:
     conn = pyodbc.connect(
         'DRIVER={ODBC Driver 17 for SQL Server};'
         'SERVER=localhost;'
-        'DATABASE=master;'
-        'UID=yusato;'
-        'PWD=lolicute;'
+        'DATABASE=QLSVNhom;'
+        'UID=test;'
+        'PWD=12345;'
     )
     print("Kết nối SQL Server thành công!")
     conn.close()

@@ -1,0 +1,42 @@
+{% extends "qlsv/base.html" %}
+{% block title %}Quản lý Lớp học{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between mb-4">
+    <h3 class="fw-bold"><i class="bi bi-people-fill me-2"></i>Danh sách lớp học</h3>
+    <a href="{% url 'add_class' %}" class="btn btn-success">
+        <i class="bi bi-plus-circle"></i> Thêm lớp mới
+    </a>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Mã lớp</th>
+                        <th>Tên lớp</th>
+                        <th>Số sinh viên</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for class in classes %}
+                    <tr>
+                        <td>{{ class.malop }}</td>
+                        <td>{{ class.tenlop }}</td>
+                        <td>{{ class.sinhvien_count }}</td>
+                        <td>
+                            <a href="{% url 'student_list' class.malop %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-list-ul"></i> Chi tiết
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

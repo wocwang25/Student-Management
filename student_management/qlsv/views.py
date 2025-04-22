@@ -1,7 +1,12 @@
+from django.db import connection
 from django.shortcuts import render, redirect
 from .forms import LoginForm
 from .models import Nhanvien, Lop
 import hashlib
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.backends import default_backend
+from utils.decorators import *
 
 # Create your views here.
 def login_view(request):
@@ -39,6 +44,7 @@ def home_view(request):
     
     return render(request, 'home.html', context)
 
+@staff_login_required
 def dashboard(request):
     # if 'manv' not in request.session:
     #     return redirect('login')
@@ -69,3 +75,98 @@ def logout_view(request):
     request.session.flush()  # Xóa toàn bộ session
     return redirect('home')
 
+@staff_login_required
+def input_score(request, masv):
+    if request.method == 'POST':
+        diemthi = request.POST.get('diemthi')
+        pubkey_name = request.session.get('pubkey')
+        
+        # Lấy public key từ NHANVIEN
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT PUBKEY FROM NHANVIEN WHERE MANV = %s", [pubkey_name])
+            pubkey_data = cursor.fetchone()[0]
+            
+        # Tải public key và mã hóa
+        public_key = serialization.load_pem_public_key(
+            pubkey_data.encode(),
+            backend=default_backend()
+        )
+        encrypted_score = public_key.encrypt(
+            diemthi.encode(),
+            padding.PKCS1v15()
+        )
+        
+        # Lưu vào BANGDIEM
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO BANGDIEM (MASV, MAHP, DIEMTHI) VALUES (%s, %s, %s)",
+                [masv, 'HP001', encrypted_score]  # Giả sử MAHP cố định
+            )
+        return redirect('student_list')
+    return render(request, 'input_score.html')
+
+@staff_login_required
+def class_management(request):
+    manv = request.session['manv']
+    # Truy vấn lớp do nhân viên quản lý
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT * FROM LOP WHERE MANV = %s", [manv])
+        classes = cursor.fetchall()
+    return render(request, 'qlsv/class_management.html', {'classes': classes})
+
+@staff_login_required
+def student_list(request, malop):
+    manv = request.session.get('manv')
+    try:
+        # Kiểm tra lớp có thuộc quyền quản lý của nhân viên không
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT TENLOP FROM LOP WHERE MALOP = %s AND MANV = %s",
+                [malop, manv]
+            )
+            lop_info = cursor.fetchone()
+            if not lop_info:
+                return render(request, 'qlsv/error.html', {'message': 'Không có quyền truy cập'})
+        
+        # Truy vấn sinh viên
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT * FROM SINHVIEN WHERE MALOP = %s", [malop])
+            students = cursor.fetchall()
+            
+        return render(request, 'student_list.html', {
+            'students': students,
+            'tenlop': lop_info[0]
+        })
+        
+    except Exception as e:
+        return render(request, 'qlsv/error.html', {'message': f'Lỗi hệ thống: {str(e)}'})
+
+@staff_login_required
+def input_score(request, masv):
+    if request.method == 'POST':
+        diemthi = request.POST.get('diemthi')
+        pubkey_name = request.session.get('pubkey')
+        
+        # Lấy public key từ NHANVIEN
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT PUBKEY FROM NHANVIEN WHERE MANV = %s", [pubkey_name])
+            pubkey_data = cursor.fetchone()[0]
+            
+        # Tải public key và mã hóa
+        public_key = serialization.load_pem_public_key(
+            pubkey_data.encode(),
+            backend=default_backend()
+        )
+        encrypted_score = public_key.encrypt(
+            diemthi.encode(),
+            padding.PKCS1v15()
+        )
+        
+        # Lưu vào BANGDIEM
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO BANGDIEM (MASV, MAHP, DIEMTHI) VALUES (%s, %s, %s)",
+                [masv, 'HP001', encrypted_score]  # Giả sử MAHP cố định
+            )
+        return redirect('student_list', malop=masv)
+    return render(request, 'qlsv/input_score.html')
