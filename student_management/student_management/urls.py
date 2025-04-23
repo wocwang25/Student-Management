@@ -27,4 +27,6 @@ urlpatterns = [
     path('login/', views.login_view, name = 'login'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('logout/', views.home_view, name='logout'),
+    # path('dashboard/classes/', views.class_management, name='class_management'),
+    # path('dashboard/classes/add/', views.add_class, name='add_class'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

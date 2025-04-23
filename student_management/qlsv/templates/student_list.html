@@ -1,0 +1,72 @@
+{% extends "qlsv/base.html" %}
+{% block title %}Danh sách Sinh viên{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold">
+        <i class="bi bi-person-lines-fill me-2"></i>
+        Lớp {{ lop.tenlop }} ({{ lop.malop }})
+    </h3>
+    <div>
+        <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+            <i class="bi bi-upload"></i> Nhập từ Excel
+        </a>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead class="table-info">
+                <tr>
+                    <th>Mã SV</th>
+                    <th>Họ tên</th>
+                    <th>Ngày sinh</th>
+                    <th>Địa chỉ</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>{{ student.masv }}</td>
+                    <td>{{ student.hoten }}</td>
+                    <td>{{ student.ngaysinh|date:"d/m/Y" }}</td>
+                    <td>{{ student.diachi }}</td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="#" class="btn btn-sm btn-outline-warning">
+                                <i class="bi bi-pencil-square"></i>
+                            </a>
+                            <a href="#" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal fade" id="importModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nhập danh sách từ Excel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <input type="file" class="form-control" accept=".xlsx">
+                    </div>
+                    <a href="#" class="btn btn-secondary">Tải template</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
