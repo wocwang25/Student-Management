@@ -29,11 +29,15 @@
 2. Nếu kết nối thành công, bạn sẽ thấy thông báo tương ứng.
 
 ### Bước 4: Áp dụng migrations
-1. Kiểm tra các migrations:
+1. Tạo migrations
+   ```
+   python manage.py makemigrations
+   ```
+2. Kiểm tra các migrations:
    ```
    python manage.py showmigrations
    ```
-2. Áp dụng migrations để tạo các bảng cần thiết:
+3. Áp dụng migrations để tạo các bảng cần thiết:
    ```
    python manage.py migrate
    ```
@@ -44,5 +48,29 @@
    python manage.py runserver
    ```
 2. Truy cập ứng dụng tại [http://127.0.0.1:8000](http://127.0.0.1:8000).
+
+---
+
+## Tính năng Ứng dụng Student-Management
+
+Ứng dụng Student-Management cung cấp các chức năng sau:
+
+1. **Quản lý sinh viên**  
+   - **Danh sách sinh viên**: Hiển thị danh sách sinh viên theo từng lớp với thông tin chi tiết như mã sinh viên, họ tên, ngày sinh và địa chỉ.  
+   - **Sửa thông tin sinh viên**: Cho phép chỉnh sửa các thông tin của sinh viên (họ tên, ngày sinh, địa chỉ, tên đăng nhập và mật khẩu). Quá trình cập nhật sử dụng stored procedure `SP_UPD_SINHVIEN` để xử lý các ràng buộc và cập nhật thông tin trong cơ sở dữ liệu SQL Server.
+   - **Nhập điểm thi**: Cho phép nhập điểm cho sinh viên thông qua form, sau đó gọi stored procedure `SP_UPD_BANGDIEM` để lưu điểm thi vào cơ sở dữ liệu.
+
+2. **Quản lý nhân viên**  
+   - **Thêm nhân viên**: Hỗ trợ tạo tài khoản nhân viên quản lý bằng cách lưu thông tin vào bảng `NHANVIEN` thông qua stored procedure `SP_INS_PUBLIC_NHANVIEN`.
+
+3. **Dashboard**  
+   - **Giao diện tổng quan**: Hiển thị thông tin người dùng (nhân viên) và danh sách các lớp mà nhân viên đang quản lý. Người dùng có thể truy cập chi tiết mỗi lớp để xem danh sách sinh viên và các thao tác chỉnh sửa, nhập điểm.
+
+4. **Kết nối Backend với MSSQL**  
+   - **Kết nối Cơ sở dữ liệu**: Sử dụng ODBC Driver 17 for SQL Server để kết nối ứng dụng Django với cơ sở dữ liệu MSSQL.
+   - **Xử lý Stored Procedure**: Ứng dụng sử dụng các stored procedure (ví dụ: `SP_UPD_SINHVIEN`, `SP_UPD_BANGDIEM`) để xử lý logic nghiệp vụ ở tầng cơ sở dữ liệu, đảm bảo tính toàn vẹn dữ liệu và xử lý các nghiệp vụ như cập nhật thông tin sinh viên, nhập điểm thi.
+
+5. **Quyền Truy cập và Bảo mật**  
+   - **Xác thực và Phân quyền**: Các trang quản lý được bảo vệ bằng các decorator kiểm tra đăng nhập (staff) và phân quyền truy cập, đảm bảo chỉ những nhân viên có đủ quyền mới có thể thao tác trên dữ liệu.
 
 ---

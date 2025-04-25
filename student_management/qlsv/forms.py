@@ -1,5 +1,5 @@
 from django import forms
 
 class LoginForm(forms.Form):
-    username = forms.CharField(label='Tên đăng nhập', max_length=50)
+    manv = forms.CharField(label='Mã nhân viên', max_length=20)
     password = forms.CharField(label='Mật khẩu', widget=forms.PasswordInput)

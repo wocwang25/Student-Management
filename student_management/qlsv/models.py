@@ -31,7 +31,7 @@ class Hocphan(models.Model):
 
 class Lop(models.Model):
     malop = models.CharField(db_column='MALOP', primary_key=True, max_length=20, db_collation='Vietnamese_CI_AS')  # Field name made lowercase.
-    ten = models.CharField(db_column='TEN', max_length=100, db_collation='Vietnamese_CI_AS')  # Field name made lowercase.
+    ten = models.CharField(db_column='TENLOP', max_length=100, db_collation='Vietnamese_CI_AS')  # Field name made lowercase.
     manv = models.ForeignKey('Nhanvien', models.DO_NOTHING, db_column='MANV', blank=True, null=True)  # Field name made lowercase.
 
     class Meta:
