@@ -1,0 +1,231 @@
+{% extends "dashboard.html" %}
+{% load static %}
+{% block title %}Nhập điểm sinh viên{% endblock %}
+{% block content %}
+<div class="score-input-container">
+  <!-- Header -->
+  <div class="header-container">
+    <h2 class="header-score">
+      <i class="bi bi-calculator"></i>
+      Nhập điểm sinh viên: {{ student_name }} - MSSV: {{ masv }}
+    </h2>
+    <a href="{% url 'student_list' malop=malop %}" class="back-btn">
+      <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+  </div>
+
+  {% if messages %}
+  <div class="messages">
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}">
+      {{ message }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Form nhập điểm -->
+  <div class="form-container">
+    <form method="POST" class="score-form">
+      {% csrf_token %}
+      
+      <div class="form-group">
+        <label for="mahp">Môn học:</label>
+        <select name="mahp" id="mahp" class="form-control" required>
+          <option value="">-- Chọn môn học --</option>
+          {% for subject in subjects %}
+          <option value="{{ subject.mahp }}">{{ subject.tenhp }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="diemthi">Điểm thi:</label>
+        <input
+          type="number"
+          name="diemthi"
+          id="diemthi"
+          class="form-control"
+          min="0"
+          max="10"
+          step="0.01"
+          required
+          disabled
+        />
+        <small class="form-text">Nhập điểm từ 0-10</small>
+      </div>
+      
+      <div class="form-actions">
+        <button type="submit" class="btn submit-btn" disabled>
+          <i class="bi bi-save"></i> Lưu điểm
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Thêm nút xem điểm -->
+  <div class="view-scores-container">
+    <button type="button" class="btn view-scores-btn" data-bs-toggle="modal" data-bs-target="#viewScoresModal">
+      <i class="bi bi-eye"></i> Xem điểm
+    </button>
+  </div>
+
+  <!-- Modal xác thực mật khẩu để xem điểm -->
+  <div class="modal fade" id="viewScoresModal" tabindex="-1" aria-labelledby="viewScoresModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title" id="viewScoresModalLabel" style="font-family: 'Genshin', sans-serif;">Xác nhận để xem điểm</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Vui lòng nhập mật khẩu để xem điểm của sinh viên {{ student_name }}</p>
+          <form id="viewScoresForm">
+            {% csrf_token %}
+            <div class="form-group">
+              <label for="password">Mật khẩu:</label>
+              <input type="password" id="password" name="password" class="form-control" required>
+            </div>
+            <div id="password-error" class="alert alert-danger mt-2" style="display: none;"></div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+          <button type="button" class="btn btn-primary" id="confirmViewScores">Xác nhận</button>
+        </div>
+        
+        <div id="scores-container" style="display: none;">
+          <div class="modal-header">
+            <h5 class="modal-title" style="font-family: 'Genshin', sans-serif;">Bảng điểm sinh viên {{ student_name }}</h5>
+          </div>
+          <div class="modal-body">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Mã HP</th>
+                  <th>Tên học phần</th>
+                  <th>Số TC</th>
+                  <th>Điểm</th>
+                </tr>
+              </thead>
+              <tbody id="scores-table-body">
+                <!-- Điểm sẽ được thêm vào đây bằng JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const selectMahp = document.getElementById('mahp');
+    const inputDiemthi = document.getElementById('diemthi');
+    const submitBtn = document.querySelector('.submit-btn');
+    
+    // Ban đầu, khóa ô nhập điểm
+    inputDiemthi.disabled = true;
+    submitBtn.disabled = true;
+    
+    // Xử lý khi chọn môn học
+    selectMahp.addEventListener('change', function() {
+      const selectedMahp = this.value;
+      
+      if (selectedMahp) {
+        // Mở khóa ô nhập điểm và nút submit
+        inputDiemthi.disabled = false;
+        submitBtn.disabled = false;
+        inputDiemthi.value = '';
+      } else {
+        // Nếu không chọn môn học, khóa lại ô nhập điểm
+        inputDiemthi.disabled = true;
+        submitBtn.disabled = true;
+        inputDiemthi.value = '';
+      }
+    });
+    
+    // Xử lý xác thực mật khẩu và hiển thị điểm
+    const confirmBtn = document.getElementById('confirmViewScores');
+    const passwordError = document.getElementById('password-error');
+    const scoresContainer = document.getElementById('scores-container');
+    const scoresTableBody = document.getElementById('scores-table-body');
+    
+    confirmBtn.addEventListener('click', function() {
+      const password = document.getElementById('password').value;
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      
+      // Reset previous error messages
+      passwordError.style.display = 'none';
+      
+      // Send AJAX request
+      fetch('{% url "view_student_scores" malop=malop masv=masv %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': csrfToken
+        },
+        body: `password=${encodeURIComponent(password)}`
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          // Hide the form and show scores
+          document.getElementById('viewScoresForm').style.display = 'none';
+          document.querySelector('.modal-footer').style.display = 'none';
+          scoresContainer.style.display = 'block';
+          
+          // Clear previous scores
+          scoresTableBody.innerHTML = '';
+          
+          // Add each score to the table
+          data.scores.forEach(score => {
+            const row = document.createElement('tr');
+            
+            const mahpCell = document.createElement('td');
+            mahpCell.textContent = score.mahp;
+            row.appendChild(mahpCell);
+            
+            const tenhpCell = document.createElement('td');
+            tenhpCell.textContent = score.tenhp;
+            row.appendChild(tenhpCell);
+            
+            const sotcCell = document.createElement('td');
+            sotcCell.textContent = score.sotc;
+            row.appendChild(sotcCell);
+            
+            const diemthiCell = document.createElement('td');
+            diemthiCell.textContent = score.diemthi !== null ? score.diemthi : 'Chưa có điểm';
+            if (score.diemthi === null) {
+              diemthiCell.classList.add('no-score');
+            }
+            row.appendChild(diemthiCell);
+            
+            scoresTableBody.appendChild(row);
+          });
+        } else {
+          // Show error message
+          passwordError.textContent = data.message || 'Có lỗi xảy ra khi xác thực mật khẩu';
+          passwordError.style.display = 'block';
+        }
+      })
+      .catch(error => {
+        passwordError.textContent = 'Lỗi kết nối: ' + error.message;
+        passwordError.style.display = 'block';
+      });
+    });
+    
+    // Reset modal when closed
+    const viewScoresModal = document.getElementById('viewScoresModal');
+    viewScoresModal.addEventListener('hidden.bs.modal', function() {
+      document.getElementById('password').value = '';
+      passwordError.style.display = 'none';
+      document.getElementById('viewScoresForm').style.display = 'block';
+      document.querySelector('.modal-footer').style.display = 'flex';
+      scoresContainer.style.display = 'none';
+    });
+  });
+</script>
+{% endblock %}

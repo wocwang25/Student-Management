@@ -1,0 +1,218 @@
+@font-face {
+    font-family: 'Genshin';
+    src: url('../fonts/zh-cn.ttf') format('truetype');
+}
+
+/* Cấu trúc chính */
+.student-list-container {
+    width: 95%;
+    max-width: 1400px; /* Bảng rộng hơn */
+    margin: 20px auto;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.85);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 3px solid #D4AF37;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* Tiêu đề */
+.list-header-container {
+    position: relative;
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 10px 0;
+  }
+
+.list-header {
+    font-family: 'Genshin', serif;
+    color: #8B6D3B;
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #D4AF37;
+    margin: 0 auto;
+    display: inline-block;
+}
+
+/* Back button */
+.back-btn {
+    background: rgba(212, 175, 55, 0.1) !important;
+    color: #8B6D3B !important;
+    border: 2px solid #D4AF37 !important;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-family: 'Genshin', serif;
+    transition: all 0.3s;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: absolute;
+    left: 0;
+    top: 55%;
+}
+
+.back-btn:hover {
+    background: #D4AF37 !important;
+    color: #000 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+}
+
+.back-btn i {
+    font-size: 1.1em;
+    transition: transform 0.2s;
+}
+
+.back-btn:hover i {
+    transform: translateX(-3px);
+}
+
+/* Bảng dữ liệu */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Genshin', serif;
+}
+
+.data-table th,
+.data-table td {
+    padding: 16px 20px;
+    text-align: center;
+    border: 2px solid #D4AF55;
+
+}
+
+.data-table th {
+    background: #8B6D3B;
+    color: #FFF;
+    font-size: 1.1em;
+    letter-spacing: 1px;
+    border-bottom: 3px solid #D4AF37;
+}
+
+.data-table td {
+    color: #5A4A3A;
+    border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.data-table tr:hover td {
+    background: rgba(212, 175, 55, 0.1);
+}
+
+.data-table tbody tr {
+    transition: all 0.2s ease;
+    transform-origin: top;
+}
+
+.data-table tbody tr:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Nút Sửa */
+.edit-btn {
+    padding: 8px 20px;
+    border: 2px solid #D4AF37 !important;
+    color: #D4AF37 !important;
+    border-radius: 6px;
+    transition: all 0.3s;
+    font-family: 'Genshin', serif;
+}
+
+.edit-btn:hover {
+    background: #D4AF37 !important;
+    color: #000 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+}
+
+/* Nút nhập điểm */
+.score-btn {
+    background-color: rgba(60, 179, 113, 0.1);
+    color: #2E8B57;
+    border: 2px solid #2E8B57 !important;
+    font-weight: 500;
+    transition: all 0.3s;
+    margin-left: 5px;
+  }
+  
+.score-btn:hover {
+    background: #2E8B57 !important;
+    color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(46, 139, 87, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .student-list-container {
+        width: 100%;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+}
+
+/* Modal styling */
+.modal-content {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid #D4AF37;
+    border-radius: 10px;
+}
+.modal-body label {
+    font-family: 'Genshin', serif;
+    color: #5A4A3A;
+    display: block;
+    margin-top: 1rem;
+    font-size: 0.95em;
+}
+.modal-body .form-control {
+    border: 2px solid rgba(212, 175, 55, 0.3);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.modal-body .form-control:focus {
+    border-color: #D4AF37;
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+}
+
+.modal-footer .btn {
+    font-family: 'Genshin', serif;
+    padding: 0.5rem 1.5rem;
+}
+
+.modal-header {
+    border-bottom: 2px solid #D4AF37;
+}
+
+.modal-title {
+    font-family: 'Cinzel', serif;
+    color: #8B6D3B;
+}
+.modal.fade .modal-dialog {
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    transform: translateY(-50px);
+    opacity: 0;
+}
+
+.modal.show .modal-dialog {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.submit-btn {
+    background: #D4AF37 !important;
+    color: #000 !important;
+    border: 2px solid #D4AF37 !important;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-family: 'Genshin', serif;
+    transition: all 0.3s;
+}

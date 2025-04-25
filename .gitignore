@@ -172,3 +172,10 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Migration files
+/student_management/qlsv/migrations/0001_initial.py
+
+
+# VS Code settings
+.vscode/

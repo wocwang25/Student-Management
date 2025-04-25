@@ -1,72 +1,232 @@
-{% extends "qlsv/base.html" %}
-{% block title %}Danh sách Sinh viên{% endblock %}
-
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="fw-bold">
-        <i class="bi bi-person-lines-fill me-2"></i>
-        Lớp {{ lop.tenlop }} ({{ lop.malop }})
-    </h3>
-    <div>
-        <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#importModal">
-            <i class="bi bi-upload"></i> Nhập từ Excel
-        </a>
+{% extends "dashboard.html" %} {% load static %} {% block title %}Danh sách Sinh
+viên{% endblock %} {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/student_list.css' %}" />
+{% endblock %} {% block content %}
+<div
+  class="modal fade"
+  id="editStudentModal"
+  tabindex="-1"
+  aria-labelledby="editStudentModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">✏️ Sửa thông tin sinh viên</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form method="POST" id="editForm">
+          {% csrf_token %}
+          <div class="form-group">
+            <label>Tên đăng nhập:</label>
+            <input
+              type="text"
+              name="tendn"
+              id="modalTendn"
+              class="form-control"
+              placeholder="Để trống nếu không muốn thay đổi"
+            />
+          </div>
+          <div class="form-group">
+            <label>Mật khẩu:</label>
+            <input
+              type="password"
+              name="mk"
+              id="modalMk"
+              class="form-control"
+              placeholder="Để trống nếu không muốn thay đổi"
+            />
+          </div>
+          <div class="form-group">
+            <label>Mã SV:</label>
+            <input type="text" id="modalMasv" class="form-control" disabled />
+          </div>
+          <div class="form-group">
+            <label>Họ tên:</label>
+            <input
+              type="text"
+              name="hoten"
+              id="modalHoten"
+              class="form-control"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>Ngày sinh:</label>
+            <input
+              type="date"
+              name="ngaysinh"
+              id="modalNgaysinh"
+              class="form-control"
+            />
+          </div>
+          <div class="form-group">
+            <label>Địa chỉ:</label>
+            <input
+              type="text"
+              name="diachi"
+              id="modalDiachi"
+              class="form-control"
+            />
+          </div>
+          <input type="hidden" name="malop" value="{{ lop.malop }}" />
+          <input type="hidden" id="modalMasvHidden" name="masv" />
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Hủy
+        </button>
+        <button
+          type="button"
+          class="btn submit-btn btn-primary"
+          onclick="submitEditForm()"
+        >
+          Lưu thay đổi
+        </button>
+      </div>
     </div>
+  </div>
+</div>
+<div class="student-list-container">
+  <!-- Header -->
+  <div class="list-header-container">
+    <h2 class="list-header">
+      <i class="bi bi-people-fill"></i>
+      LỚP {{ lop.ten|upper }} - {{ lop.malop }}
+    </h2>
+    <a href="{% url 'dashboard' %}" class="btn btn-primary back-btn">
+      <i class="bi bi-arrow-left"></i> Quay về Dashboard
+    </a>
+  </div>
+
+  <!-- Bảng sinh viên -->
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>MÃ SV</th>
+        <th>HỌ TÊN</th>
+        <th>NGÀY SINH</th>
+        <th>ĐỊA CHỈ</th>
+        <th>THAO TÁC</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for student in students %}
+      <tr>
+        <td>{{ student.0 }}</td>
+        <td>{{ student.1 }}</td>
+        <td>{{ student.2|date:"d/m/Y" }}</td>
+        <td>{{ student.3 }}</td>
+        <td>
+          <button
+            class="btn btn-sm edit-btn"
+            data-bs-toggle="modal"
+            data-bs-target="#editStudentModal"
+            data-masv="{{ student.0 }}"
+            data-hoten="{{ student.1 }}"
+            data-ngaysinh="{{ student.2|date:'Y-m-d' }}"
+            data-diachi="{{ student.3 }}"
+          >
+            <i class="bi bi-pencil-square"></i> CHỈNH SỬA
+          </button>
+          <a
+            href="{% url 'input_score' malop=lop.malop masv=student.0 %}"
+            class="btn btn-sm score-btn"
+            >
+            <i class="bi bi-calculator"></i> NHẬP ĐIỂM
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 
-<div class="card shadow">
-    <div class="card-body">
-        <table class="table table-hover">
-            <thead class="table-info">
-                <tr>
-                    <th>Mã SV</th>
-                    <th>Họ tên</th>
-                    <th>Ngày sinh</th>
-                    <th>Địa chỉ</th>
-                    <th>Thao tác</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for student in students %}
-                <tr>
-                    <td>{{ student.masv }}</td>
-                    <td>{{ student.hoten }}</td>
-                    <td>{{ student.ngaysinh|date:"d/m/Y" }}</td>
-                    <td>{{ student.diachi }}</td>
-                    <td>
-                        <div class="btn-group">
-                            <a href="#" class="btn btn-sm btn-outline-warning">
-                                <i class="bi bi-pencil-square"></i>
-                            </a>
-                            <a href="#" class="btn btn-sm btn-outline-danger">
-                                <i class="bi bi-trash"></i>
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+<style>
+  /* CSS để ẩn modal ban đầu */
+  #editStudentModal:not(.show) {
+    display: none !important;
+  }
+</style>
 
-<!-- Import Modal -->
-<div class="modal fade" id="importModal">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Nhập danh sách từ Excel</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form>
-                    <div class="mb-3">
-                        <input type="file" class="form-control" accept=".xlsx">
-                    </div>
-                    <a href="#" class="btn btn-secondary">Tải template</a>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Kiểm tra xem Bootstrap có tồn tại không
+    if (typeof bootstrap !== "undefined") {
+      // Khởi tạo modal với Bootstrap
+      var editModalElement = document.getElementById("editStudentModal");
+      if (editModalElement) {
+        var editModal = new bootstrap.Modal(editModalElement);
+
+        // Xử lý sự kiện khi modal hiển thị
+        editModalElement.addEventListener("show.bs.modal", function (event) {
+          var button = event.relatedTarget;
+          var masv = button.getAttribute("data-masv");
+          var hoten = button.getAttribute("data-hoten");
+          var ngaysinh = button.getAttribute("data-ngaysinh");
+          var diachi = button.getAttribute("data-diachi");
+
+          document.getElementById("modalMasv").value = masv;
+          document.getElementById("modalHoten").value = hoten;
+          document.getElementById("modalNgaysinh").value = ngaysinh;
+          document.getElementById("modalDiachi").value = diachi;
+          document.getElementById("modalMasvHidden").value = masv;
+        });
+      } else {
+        console.error("Modal element not found");
+      }
+    } else {
+      console.error(
+        "Bootstrap is not defined. Make sure bootstrap.js is loaded."
+      );
+    }
+  });
+
+  function submitEditForm() {
+    const form = document.getElementById("editForm");
+    const formData = new FormData(form);
+    const csrftoken = document.querySelector(
+      "[name=csrfmiddlewaretoken]"
+    ).value;
+
+    fetch(
+      "{% url 'edit_student' malop=lop.malop masv=0 %}".replace(
+        "0",
+        document.getElementById("modalMasvHidden").value
+      ),
+      {
+        method: "POST",
+        body: formData,
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": csrftoken,
+        },
+      }
+    )
+      .then((response) => {
+        if (!response.ok)
+          throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        if (data.status === "success") {
+          $("#editStudentModal").modal("hide");
+          setTimeout(() => {
+            location.reload();
+          }, 500);
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert(`Lỗi: ${error.message}`);
+      });
+  }
+</script>
 {% endblock %}
