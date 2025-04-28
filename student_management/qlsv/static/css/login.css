@@ -95,6 +95,8 @@ body {
     color: #D4AF37;
     text-decoration: none;
     font-size: 14px;
+    display: block;
+    position: relative;
 }
 
 .forgot-password:hover {

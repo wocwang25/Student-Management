@@ -1,59 +1,134 @@
 <!DOCTYPE html>
 {% load static %}
 <html lang="vi">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quản lý Sinh viên - Dashboard</title>
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-    <link rel="icon" href="{% static 'css/image/favicon.ico' %}" type="image/x-icon">
-    <link rel="stylesheet" href="{% static 'css/student_list.css' %}">
-    <link rel="stylesheet" href="{% static 'css/input_score.css' %}">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}" />
+    <link
+      rel="icon"
+      href="{% static 'css/image/favicon.ico' %}"
+      type="image/x-icon"
+    />
+    <link rel="stylesheet" href="{% static 'css/student_list.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/input_score.css' %}" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  </head>
 
-</head>
-
-{% block content %}
-    <div class="container">
-        <div class="header">
-            <div class="user-info">
-                <div class="user-avatar">
-                    <img src="{% static 'css/image/wibuavatar.jpg' %}"
-                        alt="{{ nhanvien.hoten }}">
-                </div>
-                <div class="user-details">
-                    <h2>{{ nhanvien.hoten }}</h2>
-                    <p>{{ nhanvien.email }}</p>
-                </div>
-            </div>
-            <a href="{% url 'logout' %}" class="logout-btn">Đăng xuất</a>
+  {% block content %}
+  <div class="container">
+    <div class="header">
+      <div class="user-info">
+        <div class="user-avatar">
+          <img
+            src="{% static 'css/image/zhongli.png' %}"
+            data-avatar-placeholder="true"
+            class="avatar-image"
+            alt="Avatar của {{ nhanvien.hoten|default:'nhân viên' }}"
+            style="transition: opacity 0.3s ease-in-out"
+          />
         </div>
-
-        <div class="class-container">
-            <div class="class-header">
-                <h3 style="font-family: 'Genshin', sans-serif;">Dashboard</h3>
-                <!-- <button class="add-class-btn">Thêm Lớp học</button> -->
-            </div>
-
-            <div class="class-grid">
-                {% for class in classes %}
-                <div class="class-card">
-                    <h4>{{ class.ten }}</h4>
-                    <p>Mã lớp: {{ class.malop }}</p>
-                    <p>Số sinh viên: {{ class.student_count }}</p>
-                    <div class="class-actions">
-                        <button class="action-btn edit-btn">
-                            <a href="{% url 'student_list' class.malop %}" style="text-decoration: none; color: inherit;">Xem chi tiết</a>
-                        </button>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
+        <div class="user-details">
+          <h2>{{ nhanvien.hoten }}</h2>
+          <p>{{ nhanvien.email }}</p>
+          <a href="{% url 'employee_info' %}" class="btn btn-sm btn-info mt-2">
+            <i class="bi bi-info-circle"></i> Xem thông tin cá nhân
+          </a>
         </div>
+      </div>
+      <a href="{% url 'logout' %}" class="logout-btn">Đăng xuất</a>
     </div>
-{% endblock %}
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <div class="class-container">
+      <div class="class-header">
+        <h3 style="font-family: 'Genshin', sans-serif">Dashboard</h3>
+        <!-- <button class="add-class-btn">Thêm Lớp học</button> -->
+      </div>
+
+      <div class="class-grid">
+        {% for class in classes %}
+        <div class="class-card">
+          <h4>{{ class.ten }}</h4>
+          <p>Mã lớp: {{ class.malop }}</p>
+          <p>Số sinh viên: {{ class.student_count }}</p>
+          <div class="class-actions">
+            <button class="action-btn edit-btn">
+              <a
+                href="{% url 'student_list' class.malop %}"
+                style="text-decoration: none; color: inherit"
+                >Xem chi tiết</a
+              >
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // Danh sách avatar
+      const avatars = [
+        '{% static "css/image/klee.jpg" %}',
+        '{% static "css/image/nahida.png" %}',
+        '{% static "css/image/wibuavatar.jpg" %}',
+        '{% static "css/image/sigewinne.png" %}',
+        '{% static "css/image/kachina.png" %}',
+        '{% static "css/image/loli.png" %}',
+      ];
+
+      // Xử lý khi avatar từ localStorage không hợp lệ
+      const storedAvatar = localStorage.getItem("userAvatar");
+      if (storedAvatar && !avatars.includes(storedAvatar)) {
+        // Nếu avatar trong localStorage không có trong danh sách, xóa nó
+        localStorage.removeItem("userAvatar");
+        localStorage.removeItem("avatarDate");
+      }
+
+      const avatarImg = document.querySelector(".avatar-image");
+      const today = new Date().toDateString();
+      const savedDate = localStorage.getItem("avatarDate");
+      let avatarSrc;
+
+      // Xử lý trường hợp ảnh lỗi
+      avatarImg.addEventListener("error", function () {
+        console.log("Avatar image failed to load, using default");
+        this.src = '{% static "css/image/zhongli.png" %}';
+      });
+
+      // Nếu chưa có avatar hoặc đã qua ngày mới
+      if (!savedDate || savedDate !== today) {
+        // Chọn avatar ngẫu nhiên
+        avatarSrc = avatars[Math.floor(Math.random() * avatars.length)];
+        // Lưu vào localStorage
+        localStorage.setItem("userAvatar", avatarSrc);
+        localStorage.setItem("avatarDate", today);
+      } else {
+        // Sử dụng avatar đã lưu
+        avatarSrc = localStorage.getItem("userAvatar") || avatars[0];
+      }
+
+      // Áp dụng avatar với hiệu ứng fade
+      avatarImg.style.opacity = "0";
+
+      setTimeout(() => {
+        avatarImg.src = avatarSrc;
+        avatarImg.style.opacity = "1";
+      }, 200);
+      document.querySelectorAll('.alert').forEach(function(alert) {
+        if (alert.textContent.includes('sinh viên') || 
+            alert.textContent.includes('MSSV')) {
+            alert.style.display = 'none';
+        }
+    });
+    });
+  </script>
+  {% endblock %}
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </html>

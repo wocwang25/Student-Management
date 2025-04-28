@@ -1,4 +1,5 @@
 from django.db import connection
+from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from .forms import LoginForm
 from .models import Nhanvien, Lop
@@ -19,7 +20,7 @@ def login_view(request):
             password = form.cleaned_data['password']
             
             try:
-                # Gọi SP_LOG_IN với tham số mới
+                # Gọi SP_LOG_IN
                 with connection.cursor() as cursor:
                     cursor.execute(
                         "EXEC SP_LOG_IN @MANV=%s, @MATKHAU=%s",
@@ -77,10 +78,24 @@ def dashboard(request):
         nv = Nhanvien.objects.get(manv=manv)
         
         # Lấy danh sách lớp mà nhân viên đang quản lý
-        classes = Lop.objects.filter(manv=nv)
-
-        for lop in classes:
-            lop.student_count = lop.sinhvien_set.count() 
+        classes = []
+        with connection.cursor() as cursor:
+            cursor.execute("EXEC SP_GET_CL @maNV=%s", [manv])
+            class_rows = cursor.fetchall()
+            
+            # Chuyển đổi kết quả thành list các dictionary
+            for row in class_rows:
+                lop = {
+                    'malop': row[0],
+                    'ten': row[1]
+                }
+                
+                # Tính số lượng sinh viên cho từng lớp
+                cursor.execute("SELECT COUNT(*) FROM SINHVIEN WHERE MALOP=%s", [lop['malop']])
+                student_count = cursor.fetchone()[0]
+                lop['student_count'] = student_count
+                
+                classes.append(lop)
 
         return render(request, 'dashboard.html', {
             'nhanvien': nv,
@@ -97,12 +112,60 @@ def logout_view(request):
     return redirect('home')
 
 @staff_login_required
-def class_management(request):
+def view_employee_info(request):
+    # Lấy thông tin nhân viên đang đăng nhập
     manv = request.session.get('manv')
-    with connection.cursor() as cursor:
-        cursor.execute("EXEC SP_GET_CL @maNV=%s", [manv])
-        classes = cursor.fetchall()
-    return render(request, 'class_management.html', {'classes': classes})
+    tendn = None
+    
+    # Xóa tất cả thông báo cũ
+    storage = messages.get_messages(request)
+    for message in storage:
+        pass  # Đọc qua tất cả thông báo để đánh dấu đã đọc
+    storage.used = True  # Xác nhận đã sử dụng
+    
+    # Lấy tên đăng nhập của nhân viên
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT TENDN FROM NHANVIEN WHERE MANV=%s", [manv])
+            result = cursor.fetchone()
+            if result:
+                tendn = result[0]
+    except Exception as e:
+        messages.error(request, f"Lỗi khi lấy thông tin nhân viên: {str(e)}")
+        return redirect('dashboard')
+    
+    employee_info = None
+    error_message = None
+    
+    if request.method == 'POST':
+        password = request.POST.get('password')
+        
+        try:
+            # Gọi stored procedure để lấy thông tin nhân viên
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "EXEC SP_SEL_PUBLIC_NHANVIEN @TENDN=%s, @MK=%s",
+                    [tendn, password]
+                )
+                
+                # Xử lý kết quả trả về từ stored procedure
+                result = cursor.fetchone()
+                if result:
+                    employee_info = {
+                        'manv': result[0],
+                        'hoten': result[1],
+                        'email': result[2],
+                        'luongcb': result[3]
+                    }
+        except Exception as e:
+            error_message = f"Lỗi khi lấy thông tin nhân viên: {str(e)}"
+            print(f"Error fetching employee info: {e}")
+    
+    # Render template
+    return render(request, 'employee_info.html', {
+        'employee_info': employee_info,
+        'error_message': error_message
+    })
 
 @staff_login_required
 @check_class_permission
@@ -121,6 +184,194 @@ def student_list(request, malop):
         'students': students,
         'lop': lop
     })
+    
+@staff_login_required
+@check_class_permission
+def add_student(request, malop):
+    # Lấy thông tin lớp
+    try:
+        lop = Lop.objects.get(malop=malop)
+        tenlop = lop.ten
+    except Lop.DoesNotExist:
+        lop = {'malop': malop}
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT TENLOP FROM LOP WHERE MALOP=%s", [malop])
+            result = cursor.fetchone()
+            tenlop = result[0] if result else 'Lớp không tồn tại'
+
+    if request.method == 'POST':
+        # Lấy dữ liệu từ form
+        masv = request.POST.get('masv')
+        hoten = request.POST.get('hoten')
+        ngaysinh = request.POST.get('ngaysinh')
+        diachi = request.POST.get('diachi')
+        tendn = request.POST.get('tendn', '')
+        mk = request.POST.get('mk', '')
+        
+        # Kiểm tra đầu vào phía server
+        errors = {}
+        if not masv:
+            errors['masv'] = "Mã sinh viên không được để trống"
+        if not hoten:
+            errors['hoten'] = "Họ tên không được để trống"
+        if not ngaysinh:
+            errors['ngaysinh'] = "Ngày sinh không được để trống"
+        if not diachi:
+            errors['diachi'] = "Địa chỉ không được để trống"
+        if not tendn:
+            errors['tendn'] = "Tên đăng nhập không được để trống"
+        if not mk:
+            errors['mk'] = "Mật khẩu không được để trống"
+            
+        # Nếu có lỗi, trả về ngay
+        if errors:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'status': 'error',
+                    'message': "Vui lòng điền đầy đủ thông tin bắt buộc!",
+                    'field_errors': errors
+                })
+            else:
+                messages.error(request, "Vui lòng điền đầy đủ thông tin bắt buộc!")
+                return render(request, 'add_student.html', {
+                    'malop': malop,
+                    'tenlop': tenlop,
+                    'errors': errors
+                })
+        
+        try:
+            # Gọi stored procedure để thêm sinh viên
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "EXEC SP_INS_SINHVIEN @MASV=%s, @HOTEN=%s, @NGAYSINH=%s, @DIACHI=%s, @MALOP=%s, @TENDN=%s, @MATKHAU=%s",
+                    [masv, hoten, ngaysinh, diachi, malop, tendn, mk]
+                )
+            
+            success_message = f"Đã thêm sinh viên {hoten} vào lớp {tenlop}"
+            messages.success(request, success_message)
+            
+            # Nếu là AJAX request thì trả về JSON
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'status': 'success', 
+                    'message': success_message,
+                    'student': {
+                        'masv': masv,
+                        'hoten': hoten,
+                        'ngaysinh': ngaysinh,
+                        'diachi': diachi
+                    }
+                })
+                
+            # Nếu không phải AJAX, chuyển hướng về danh sách sinh viên
+            return redirect('student_list', malop=malop)
+            
+        except Exception as e:
+            # Xử lý các lỗi từ stored procedure
+            error_message = str(e)
+            field_error = None
+            
+            # Xử lý các loại lỗi cụ thể
+            if 'Required fields cannot be NULL' in error_message:
+                error_message = "Vui lòng điền đầy đủ thông tin bắt buộc!"
+            elif '@MASV is exist' in error_message:
+                error_message = "Mã sinh viên đã tồn tại!"
+                field_error = "masv"
+            elif 'TENDN is exist' in error_message:
+                error_message = "Tên đăng nhập đã tồn tại!"
+                field_error = "tendn"
+            elif 'MALOP does not exist' in error_message:
+                error_message = "Mã lớp không tồn tại!"
+                
+            messages.error(request, f"Lỗi khi thêm sinh viên: {error_message}")
+            
+            # Nếu là AJAX request thì trả về JSON
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                response_data = {
+                    'status': 'error', 
+                    'message': error_message
+                }
+                
+                if field_error:
+                    response_data['field_error'] = field_error
+                    
+                return JsonResponse(response_data)
+            
+            # Nếu không phải AJAX, render lại form với lỗi
+            return render(request, 'add_student.html', {
+                'malop': malop,
+                'tenlop': tenlop,
+                'error': error_message,
+                'form_data': {
+                    'masv': masv,
+                    'hoten': hoten,
+                    'ngaysinh': ngaysinh,
+                    'diachi': diachi,
+                    'tendn': tendn
+                }
+            })
+    
+    # Render form thêm sinh viên (GET request)
+    return render(request, 'add_student.html', {
+        'malop': malop,
+        'tenlop': tenlop
+    })
+
+@staff_login_required
+@check_class_permission
+def remove_student(request, malop, masv):
+    # Lấy mã nhân viên từ session
+    manv = request.session.get('manv')
+    
+    try:
+        # Trước khi xóa, lấy tên sinh viên để hiển thị trong thông báo
+        student_name = ""
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT HOTEN FROM SINHVIEN WHERE MASV=%s", [masv])
+            result = cursor.fetchone()
+            if result:
+                student_name = result[0]
+        
+        # Gọi stored procedure để xóa sinh viên
+        with connection.cursor() as cursor:
+            cursor.execute("EXEC SP_DEL_SINHVIEN @MASV=%s, @MANV=%s", [masv, manv])
+            
+        success_message = f"Đã xóa sinh viên {student_name} (MSSV: {masv})"
+        messages.success(request, success_message)
+        
+        # Nếu là AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'status': 'success',
+                'message': success_message
+            })
+            
+    except Exception as e:
+        error_message = str(e)
+        
+        # Xử lý các loại lỗi cụ thể
+        if 'MASV or MANV cannot be NULL' in error_message:
+            error_message = "Dữ liệu không hợp lệ để xóa sinh viên"
+        elif 'MANV does not exist' in error_message:
+            error_message = "Tài khoản nhân viên không hợp lệ"
+        elif 'MASV does not exist' in error_message:
+            error_message = "Sinh viên không tồn tại"
+        elif 'Nhân viên không có quyền xóa sinh viên này' in error_message:
+            error_message = "Bạn không có quyền xóa sinh viên này"
+        else:
+            error_message = f"Lỗi khi xóa sinh viên: {error_message}"
+            
+        messages.error(request, error_message)
+        
+        # Nếu là AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'status': 'error',
+                'message': error_message
+            })
+    
+    # Mặc định redirect về trang danh sách sinh viên
+    return redirect('student_list', malop=malop) 
 
 @staff_login_required
 @check_class_permission

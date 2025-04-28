@@ -12,7 +12,7 @@ viên{% endblock %} {% block extra_css %}
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">✏️ Sửa thông tin sinh viên</h5>
+        <h5 class="modal-title" style="font-family: 'Genshin', sans-serif;">✏️ Sửa thông tin sinh viên</h5>
         <button
           type="button"
           class="btn-close"
@@ -94,16 +94,97 @@ viên{% endblock %} {% block extra_css %}
     </div>
   </div>
 </div>
+<div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" style="font-family: 'Genshin', sans-serif;">
+          <i class="bi bi-person-plus"></i> Thêm sinh viên mới
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form method="POST" id="addForm" novalidate>
+          {% csrf_token %}
+          <div class="form-group">
+            <label>Mã SV:</label>
+            <input type="text" name="masv" id="addMasv" class="form-control" required>
+            <div class="invalid-feedback">Vui lòng nhập mã sinh viên</div>
+          </div>
+          <div class="form-group">
+            <label>Họ tên:</label>
+            <input type="text" name="hoten" id="addHoten" class="form-control" required>
+            <div class="invalid-feedback">Vui lòng nhập họ tên</div>
+          </div>
+          <div class="form-group">
+            <label>Ngày sinh:</label>
+            <input type="date" name="ngaysinh" id="addNgaysinh" class="form-control" required>
+            <div class="invalid-feedback">Vui lòng chọn ngày sinh</div>
+          </div>
+          <div class="form-group">
+            <label>Địa chỉ:</label>
+            <input type="text" name="diachi" id="addDiachi" class="form-control" required>
+            <div class="invalid-feedback">Vui lòng nhập địa chỉ</div>
+          </div>
+          <div class="form-group">
+            <label>Tên đăng nhập:</label>
+            <input type="text" name="tendn" id="addTendn" class="form-control" required>
+            <div class="invalid-feedback">Vui lòng nhập tên đăng nhập</div>
+          </div>
+          <div class="form-group">
+            <label>Mật khẩu:</label>
+            <input type="password" name="mk" id="addMk" class="form-control" required>
+            <div class="invalid-feedback">Vui lòng nhập mật khẩu</div>
+          </div>
+          <input type="hidden" name="malop" value="{{ lop.malop }}">
+          
+          <!-- Hiển thị thông báo lỗi -->
+          <div id="addFormError" class="alert alert-danger mt-3" style="display: none;"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-success" id="submitAddForm">
+          <i class="bi bi-plus-circle"></i> Thêm sinh viên
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Modal xác nhận xóa sinh viên -->
+<div class="modal fade" id="deleteStudentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" style="font-family: 'Genshin', sans-serif;">Xác nhận xóa sinh viên</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Bạn có chắc chắn muốn xóa sinh viên <strong id="deleteStudentName"></strong> (MSSV: <span id="deleteStudentId"></span>)?</p>
+        <p class="text-danger">Lưu ý: Hành động này không thể hoàn tác.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-danger" id="confirmDelete">Xác nhận xóa</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="student-list-container">
   <!-- Header -->
-  <div class="list-header-container">
+    <div class="list-header-container">
     <h2 class="list-header">
       <i class="bi bi-people-fill"></i>
       LỚP {{ lop.ten|upper }} - {{ lop.malop }}
     </h2>
-    <a href="{% url 'dashboard' %}" class="btn btn-primary back-btn">
-      <i class="bi bi-arrow-left"></i> Quay về Dashboard
-    </a>
+    <div class="header-actions">
+      <button class="btn add-student-btn" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+        <i class="bi bi-person-plus"></i> Thêm sinh viên
+      </button>
+      <a href="{% url 'dashboard' %}" class="btn btn-primary back-btn">
+        <i class="bi bi-arrow-left"></i> Quay về Dashboard
+      </a>
+    </div>
   </div>
 
   <!-- Bảng sinh viên -->
@@ -142,6 +223,15 @@ viên{% endblock %} {% block extra_css %}
             >
             <i class="bi bi-calculator"></i> NHẬP ĐIỂM
           </a>
+          <button
+            class="btn btn-sm delete-btn"
+            data-bs-toggle="modal"
+            data-bs-target="#deleteStudentModal"
+            data-masv="{{ student.0 }}"
+            data-hoten="{{ student.1 }}"
+          >
+            <i class="bi bi-trash"></i> XÓA
+          </button>
         </td>
       </tr>
       {% endfor %}
@@ -187,6 +277,177 @@ viên{% endblock %} {% block extra_css %}
         "Bootstrap is not defined. Make sure bootstrap.js is loaded."
       );
     }
+
+    // Xử lý form thêm sinh viên
+  const submitAddBtn = document.getElementById('submitAddForm');
+  if (submitAddBtn) {
+    submitAddBtn.addEventListener('click', function() {
+      const addForm = document.getElementById('addForm');
+      
+      // Reset lỗi và trạng thái validate
+      document.getElementById('addFormError').style.display = 'none';
+      document.getElementById('addFormError').textContent = '';
+      
+      // Kiểm tra form validation
+      let isValid = true;
+      
+      // Validate các trường bắt buộc
+      const requiredFields = ['addMasv', 'addHoten', 'addNgaysinh', 'addDiachi', 'addTendn', 'addMk'];
+      requiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (!field.value.trim()) {
+          field.classList.add('is-invalid');
+          isValid = false;
+        } else {
+          field.classList.remove('is-invalid');
+        }
+      });
+      
+      if (!isValid) {
+        return;
+      }
+      
+      // Form hợp lệ, tiến hành submit
+      const formData = new FormData(addForm);
+      const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      
+      // Hiện spinner hoặc disable button để tránh click nhiều lần
+      submitAddBtn.disabled = true;
+      submitAddBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang xử lý...';
+      
+      fetch('{% url "add_student" malop=lop.malop %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': csrftoken
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        submitAddBtn.disabled = false;
+        submitAddBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Thêm sinh viên';
+        
+        if (data.status === 'success') {
+          // Thêm thành công
+          const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentModal'));
+          modal.hide();
+          
+          // Hiển thị thông báo thành công
+          const alertDiv = document.createElement('div');
+          alertDiv.className = 'alert alert-success alert-dismissible fade show';
+          alertDiv.innerHTML = `
+            <strong>Thành công!</strong> ${data.message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          `;
+          
+          document.querySelector('.student-list-container').prepend(alertDiv);
+          
+          // Reset form
+          addForm.reset();
+          
+          // Reload sau 1.5 giây
+          setTimeout(() => {
+            location.reload();
+          }, 1500);
+        } else {
+          // Hiển thị lỗi
+          document.getElementById('addFormError').textContent = data.message;
+          document.getElementById('addFormError').style.display = 'block';
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        submitAddBtn.disabled = false;
+        submitAddBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Thêm sinh viên';
+        document.getElementById('addFormError').textContent = 'Đã xảy ra lỗi khi xử lý yêu cầu.';
+        document.getElementById('addFormError').style.display = 'block';
+      });
+    });
+    
+    // Event listeners để xóa class is-invalid khi người dùng bắt đầu nhập
+    const addInputFields = document.querySelectorAll('#addForm input');
+    addInputFields.forEach(input => {
+      input.addEventListener('input', function() {
+        if (this.value.trim()) {
+          this.classList.remove('is-invalid');
+        }
+      });
+    });
+  }
+  // Xử lý xóa sinh viên
+  const deleteModal = document.getElementById('deleteStudentModal');
+  if (deleteModal) {
+    deleteModal.addEventListener('show.bs.modal', function(event) {
+      const button = event.relatedTarget;
+      const masv = button.getAttribute('data-masv');
+      const hoten = button.getAttribute('data-hoten');
+      
+      document.getElementById('deleteStudentName').textContent = hoten;
+      document.getElementById('deleteStudentId').textContent = masv;
+      
+      const confirmBtn = document.getElementById('confirmDelete');
+      confirmBtn.setAttribute('data-masv', masv);
+    });
+    
+    const confirmDeleteBtn = document.getElementById('confirmDelete');
+    confirmDeleteBtn.addEventListener('click', function() {
+      const masv = this.getAttribute('data-masv');
+      const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      
+      // Disable nút và hiển thị loading
+      confirmDeleteBtn.disabled = true;
+      confirmDeleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang xử lý...';
+      
+      fetch(`{% url "student_list" malop=lop.malop %}${masv}/remove/`, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': csrftoken
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        const modal = bootstrap.Modal.getInstance(deleteModal);
+        modal.hide();
+        
+        if (data.status === 'success') {
+          // Hiển thị thông báo thành công
+          const alertDiv = document.createElement('div');
+          alertDiv.className = 'alert alert-success alert-dismissible fade show';
+          alertDiv.innerHTML = `
+            <strong>Thành công!</strong> ${data.message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          `;
+          
+          document.querySelector('.student-list-container').prepend(alertDiv);
+          
+          // Xóa hàng trong bảng
+          document.querySelector(`tr[data-masv="${masv}"]`).remove();
+          
+          // Reload sau 1.5 giây
+          setTimeout(() => {
+            location.reload();
+          }, 1500);
+        } else {
+          // Hiển thị lỗi
+          const alertDiv = document.createElement('div');
+          alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+          alertDiv.innerHTML = `
+            <strong>Lỗi!</strong> ${data.message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          `;
+          
+          document.querySelector('.student-list-container').prepend(alertDiv);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        confirmDeleteBtn.disabled = false;
+        confirmDeleteBtn.innerHTML = 'Xác nhận xóa';
+      });
+    });
+  }
   });
 
   function submitEditForm() {
