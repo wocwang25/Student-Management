@@ -288,3 +288,20 @@
   background-color: #dc3545;
   color: white;
 }
+/* Tìm kiếm */
+.search-container {
+  margin-bottom: 1.5rem;
+}
+
+#clearSearchBtn {
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+#clearSearchBtn:hover {
+  opacity: 1;
+}
+
+.highlight {
+  background-color: rgba(255, 255, 0, 0.3);
+}
