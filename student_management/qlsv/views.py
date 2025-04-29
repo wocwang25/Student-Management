@@ -10,6 +10,35 @@ from cryptography.hazmat.backends import default_backend
 from utils.decorators import *
 from decimal import Decimal
 
+import logging
+logger = logging.getLogger('django.db.backend')
+
+def execute_stored_procedure(proc_name, params_dict):
+    logger.debug(f"EXECUTING STORED PROCEDURE: {proc_name}")
+    with connection.cursor() as cursor:
+        # Tạo các giá trị SQL trực tiếp với dấu nháy phù hợp
+        param_strings = []
+        
+        for key, value in params_dict.items():
+            # Xử lý giá trị theo kiểu dữ liệu để tạo chuỗi SQL hợp lệ
+            if isinstance(value, str):
+                formatted_value = f"N'{value}'"
+            elif value is None:
+                formatted_value = "NULL"
+            else:
+                formatted_value = str(value)
+                
+            param_strings.append(f"@{key}={formatted_value}")
+        
+        # Tạo câu lệnh SQL thực thi trực tiếp không qua tham số hóa
+        exec_string = f"EXEC {proc_name} {', '.join(param_strings)}"
+        
+        logger.debug(f"EXECUTING RAW SQL: {exec_string}")
+        
+        # Thực thi trực tiếp câu lệnh không tham số hóa
+        cursor.execute(exec_string)
+        return cursor.fetchall()
+    
 # Create your views here.
 def login_view(request):
     error = ""
@@ -432,11 +461,12 @@ def input_score(request, malop, masv):
                 })
             
             # Gọi SP để mã hóa và lưu điểm
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "EXEC SP_UPD_BANGDIEM @MANV=%s, @MASV=%s, @MAHP=%s, @DIEMTHI=%s",
-                    [manv, masv, mahp, diemthi]
-                )
+            execute_stored_procedure("SP_UPD_BANGDIEM", {
+                "MANV": manv,
+                "MASV": masv,
+                "MAHP": mahp,
+                "DIEMTHI": diemthi
+            })
             
             # Tìm tên môn học để hiển thị thông báo
             tenhp = next((subject['tenhp'] for subject in subjects if subject['mahp'] == mahp), mahp)
