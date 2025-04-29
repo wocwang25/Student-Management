@@ -10,105 +10,107 @@ go
 
 create database QLSVNhom
 
-alter Database QLSVNhom
-SET Compatibility_Level = 120;
+alter database QLSVNhom
+set Compatibility_Level = 120;
 go
 
 --CAC CAU LENH TAO TABLE
-use QLSVNhom
-go
 create table NHANVIEN
 (
-	MANV varchar(20) NOT NULL,
-	HOTEN nvarchar(100) NOT NULL,
+	MANV varchar(20) not null,
+	HOTEN nvarchar(100) not null,
 	EMAIL varchar(20),
-	LUONG VARBINARY(max),
-	TENDN nvarchar(100)NOT NULL,
-	MATKHAU VARBINARY(max) NOT NULL,
-	PUBKEY VARCHAR(20) NOT NULL
+	LUONG varbinary(max),
+	TENDN nvarchar(100) not null,
+	MATKHAU varbinary(max) not null,
+	PUBKEY varchar(20) not null,
 	constraint PK_NV primary key (MANV)
-)
+);
 
 create table SINHVIEN
 (
-	MASV varchar(20) NOT NULL,
-	HOTEN nvarchar(100) NOT NULL,
+	MASV varchar(20) not null,
+	HOTEN nvarchar(100) not null,
 	NGAYSINH datetime,
 	DIACHI nvarchar(200),
 	MALOP varchar(20),
-	TENDN nvarchar(100)NOT NULL,
-	MATKHAU VARBINARY(max) NOT NULL
-	constraint PK_SV primary key(MASV)
-)
+	TENDN nvarchar(100) not null,
+	MATKHAU varbinary(max) not null,
+	constraint PK_SV primary key (MASV)
+);
+
 create table LOP
 (
 	MALOP varchar(20),
-	TENLOP nvarchar(100) NOT NULL,
-	MANV varchar(20)
-	constraint PK_L primary key(MALOP)
-)
+	TENLOP nvarchar(100) not null,
+	MANV varchar(20),
+	constraint PK_L primary key (MALOP)
+);
+
 create table HOCPHAN
 (
-	MAHP varchar(20) NOT NULL,
-	TENHP nvarchar(100) NOT NULL,
-	SOTC int
-	constraint PK_HP primary key(MAHP)
-)
+	MAHP varchar(20) not null,
+	TENHP nvarchar(100) not null,
+	SOTC int,
+	constraint PK_HP primary key (MAHP)
+);
+
 create table BANGDIEM
 (
-	MASV varchar(20) NOT NULL,
-	MAHP varchar(20) NOT NULL,
-	DIEMTHI VARBINARY(max),
-	constraint PK_BD primary key(MASV, MAHP)
-)
+	MASV varchar(20) not null,
+	MAHP varchar(20) not null,
+	DIEMTHI varbinary(max),
+	constraint PK_BD primary key (MASV, MAHP)
+);
+
  --Quan he
 alter table LOP
-add constraint FK_L_NV foreign key(MANV) references NHANVIEN(MANV)
-ON DELETE CASCADE
-ON UPDATE CASCADE;
+add constraint FK_L_NV foreign key (MANV) references NHANVIEN (MANV)
+on delete cascade
+on update cascade;
 
 alter table SINHVIEN 
-add constraint FK_SV_L foreign key(MALOP) references LOP(MALOP)
-ON DELETE CASCADE
-ON UPDATE CASCADE;
+add constraint FK_SV_L foreign key (MALOP) references LOP (MALOP)
+on delete cascade
+on update cascade;
 
 alter table BANGDIEM --drop constraint FK_BD_HP
-add constraint FK_BD_SV foreign key(MASV) references SINHVIEN(MASV)
-ON DELETE CASCADE
-ON UPDATE CASCADE;
+add constraint FK_BD_SV foreign key (MASV) references SINHVIEN (MASV)
+on delete cascade
+on update cascade;
 
 alter table BANGDIEM
-add constraint FK_BD_HP foreign key(MAHP) references HOCPHAN(MAHP)
-ON DELETE CASCADE
-ON UPDATE CASCADE;
+add constraint FK_BD_HP foreign key (MAHP) references HOCPHAN (MAHP)
+on delete cascade
+on update cascade;
 
-alter table NHANVIEN ADD CONSTRAINT UQ_NV_TENDN UNIQUE (TENDN);
-alter table SINHVIEN ADD CONSTRAINT UQ_SV_TENDN UNIQUE (TENDN);
+alter table NHANVIEN add constraint UQ_NV_TENDN unique (TENDN);
+alter table SINHVIEN add constraint UQ_SV_TENDN unique (TENDN);
 
 --Tao MASTERKEY
-IF NOT EXISTS
+if not exists
 (
-	SELECT*
+	select *
 	from sys.symmetric_keys
-	WHERE symmetric_key_id = 101
+	where symmetric_key_id = 101
 )
+create master key encryption by
+	password = '22120306'
+go
 
-CREATE MASTER KEY ENCRYPTION by
-	PASSWORD = '22120306'
-GO
-
-IF NOT EXISTS
+if not exists
 (
-	SELECT*
+	select *
 	from sys.certificates
-	WHERE name = 'myCert'
+	where name = 'myCert'
 )
-CREATE CERTIFICATE myCert
-	WITH SUBJECT = 'myCert'
-GO
+create certificate myCert
+	with subject = 'myCert'
+go
+
 --drop master key
 --drop certificate myCert	
-GO
+go
 -- Câu c
 ---- i. Stored dùng để thêm nhân viên: SP_INS_PUBLIC_NHANVIEN
 if exists (select 1 from sys.procedures where name = 'SP_INS_PUBLIC_NHANVIEN')
@@ -126,52 +128,53 @@ create proc SP_INS_PUBLIC_NHANVIEN
 	@TENDN nvarchar(100),
 	@MK varchar(50)
 )
-As
-Begin
+as
+begin
 	set nocount on;
 
 	-- Kiểm tra các cột bắt buộc
-    IF @MANV IS NULL OR @HOTEN IS NULL OR @TENDN IS NULL OR @MK IS NULL
-    BEGIN
-        RAISERROR('Required fields cannot be NULL', 16, 1);
-        RETURN;
-    END
+	if @MANV is null or @HOTEN is null or @TENDN is null or @MK is null
+	begin
+		raiserror('Required fields cannot be NULL', 16, 1);
+		return;
+	end
 
 	-- Kiểm tra nếu nhân viên đã tồn tại
-    IF EXISTS (SELECT 1 FROM NHANVIEN WHERE MANV = @MANV)
-    BEGIN
-        RAISERROR('@MANV is exist', 16, 1);
-        RETURN;
-    END
+	if exists (select 1 from NHANVIEN where MANV = @MANV)
+	begin
+		raiserror('@MANV is exist', 16, 1);
+		return;
+	end
 
 	-- Kiểm tra TENDN đã tồn tại
-    IF EXISTS (SELECT 1 FROM NHANVIEN WHERE TENDN = @TENDN)
-    BEGIN
-        RAISERROR('TENDN is exist', 16, 1);
-        RETURN;
-    END
+	if exists (select 1 from NHANVIEN where TENDN = @TENDN)
+	begin
+		raiserror('TENDN is exist', 16, 1);
+		return;
+	end
 
-	DECLARE @PUBKEY varchar(20) = @MANV;
+	declare @PUBKEY varchar(20) = @MANV;
 
 	-- Tạo asymmetric key nếu chưa tồn tại
-	IF NOT EXISTS (SELECT * FROM sys.asymmetric_keys WHERE name = @MANV)
-	BEGIN
-		EXEC('CREATE ASYMMETRIC KEY [' + @MANV + '] WITH ALGORITHM = RSA_512 ENCRYPTION BY PASSWORD = ''' + @MK + '''');
-	END
+	if not exists (select * from sys.asymmetric_keys where name = @MANV)
+	begin
+		exec('create asymmetric key [' + @MANV + '] with algorithm = RSA_512 encryption by password = ''' + @MK + '''');
+	end
 
 	-- Băm mật khẩu bằng SHA1
-	DECLARE @HashPass varbinary(20);
-	SET @HashPass = HashBytes('SHA1', @MK);
+	declare @HashPass varbinary(20);
+	set @HashPass = hashbytes('SHA1', @MK);
 
 	-- Mã hóa lương
-	DECLARE @EnWage varbinary(max);
-	SET @EnWage = ENCRYPTBYASYMKEY(ASYMKEY_ID(@PUBKEY), CAST(@LUONGCB AS varchar(20)))
+	declare @EnWage varbinary(max);
+	set @EnWage = encryptbyasymkey(asymkey_id(@PUBKEY), cast(@LUONGCB as varchar(20)));
 
 	-- Thêm dữ liệu
-	INSERT INTO NHANVIEN(MANV, HOTEN, EMAIL, LUONG, TENDN, MATKHAU, PUBKEY)
-	VALUES (@MANV, @HOTEN, @EMAIL, @EnWage, @TENDN, @HashPass, @PUBKEY);
-End
-GO
+	insert into NHANVIEN(MANV, HOTEN, EMAIL, LUONG, TENDN, MATKHAU, PUBKEY)
+	values (@MANV, @HOTEN, @EMAIL, @EnWage, @TENDN, @HashPass, @PUBKEY);
+end
+go
+
 
 --drop procedure SP_INS_PUBLIC_NHANVIEN
 
@@ -187,40 +190,41 @@ create proc SP_SEL_PUBLIC_NHANVIEN
 	@TENDN nvarchar(100),
 	@MK varchar(50)
 )
-As
-	Begin
-		set nocount on;
-		declare @PUBKEY varchar(20)
+as
+begin
+	set nocount on;
+	declare @PUBKEY varchar(20);
 
-		-- Kiểm tra nhân viên có tồn tại không
-		DECLARE @HashPass varbinary(max)
-		DECLARE @MANV VARCHAR(20);
+	-- Kiểm tra nhân viên có tồn tại không
+	declare @HashPass varbinary(max);
+	declare @MANV varchar(20);
 
-		SET @HashPass = HASHBYTES('SHA1', @MK);
-		SELECT @MANV = NV.MANV, @PUBKEY = NV.PUBKEY
-		FROM NHANVIEN NV
-		WHERE NV.TENDN = @TENDN AND NV.MATKHAU = @HashPass;
-		IF @MANV IS NULL
-		BEGIN
-			RAISERROR('Incorrect TENDN or MK', 16, 1);
-			RETURN;
-		END
+	set @HashPass = hashbytes('SHA1', @MK);
+	select @MANV = NV.MANV, @PUBKEY = NV.PUBKEY
+	from NHANVIEN NV
+	where NV.TENDN = @TENDN and NV.MATKHAU = @HashPass;
 
-		-- Kiểm tra nếu Asymmetric Key tồn tại
-		IF NOT EXISTS (SELECT 1 FROM sys.asymmetric_keys WHERE name = @MANV)
-		BEGIN
-			RAISERROR('RSA key does not exist', 16, 1);
-			RETURN;
-		END
+	if @MANV is null
+	begin
+		raiserror('Incorrect TENDN or MK', 16, 1);
+		return;
+	end
 
-		-- Giải mã LUONG
-		SELECT MANV, HOTEN, EMAIL, 
-           CONVERT(int, CAST(DECRYPTBYASYMKEY(ASYMKEY_ID(@PUBKEY), LUONG, CAST(@MK AS nvarchar(50))) AS varchar(20))) AS LUONGCB 
-		FROM NHANVIEN
-		WHERE TENDN = @TENDN
+	-- Kiểm tra nếu Asymmetric Key tồn tại
+	if not exists (select 1 from sys.asymmetric_keys where name = @MANV)
+	begin
+		raiserror('RSA key does not exist', 16, 1);
+		return;
+	end
 
-	END
-GO	 	 
+	-- Giải mã LUONG
+	select MANV, HOTEN, EMAIL, 
+		convert(int, cast(decryptbyasymkey(asymkey_id(@PUBKEY), LUONG, cast(@MK as nvarchar(50))) as varchar(20))) as LUONGCB 
+	from NHANVIEN
+	where TENDN = @TENDN;
+end
+go
+	 	 
 -- drop procedure SP_SEL_PUBLIC_NHANVIEN
 -- exec SP_SEL_PUBLIC_NHANVIEN 'NVA', '123456'
 
@@ -236,186 +240,194 @@ create proc SP_INS_SINHVIEN
 	@TENDN nvarchar(100),
 	@MATKHAU varchar(50)
 )
-AS
-BEGIN
+as
+begin
 	set nocount on;
 
 	-- Kiểm tra các cột bắt buộc
-    IF @MASV IS NULL OR @HOTEN IS NULL OR @TENDN IS NULL OR @MATKHAU IS NULL
-    BEGIN
-        RAISERROR('Required fields cannot be NULL', 16, 1);
-        RETURN;
-    END
+	if @MASV is null or @HOTEN is null or @TENDN is null or @MATKHAU is null
+	begin
+		raiserror('Required fields cannot be NULL', 16, 1);
+		return;
+	end
 
 	-- Kiểm tra sinh viên đã tồn tại hay chưa
-	IF EXISTS (SELECT 1 FROM SINHVIEN WHERE MASV = @MASV)
-    BEGIN
-        RAISERROR('@MASV is exist', 16, 1);
-        RETURN;
-    END
+	if exists (select 1 from SINHVIEN where MASV = @MASV)
+	begin
+		raiserror('@MASV is exist', 16, 1);
+		return;
+	end
 
 	-- Kiểm tra TENDN đã tồn tại
-    IF EXISTS (SELECT 1 FROM SINHVIEN WHERE TENDN = @TENDN)
-    BEGIN
-        RAISERROR('TENDN is exist', 16, 1);
-        RETURN;
-    END
+	if exists (select 1 from SINHVIEN where TENDN = @TENDN)
+	begin
+		raiserror('TENDN is exist', 16, 1);
+		return;
+	end
 
-    -- Kiểm tra MALOP tồn tại
-    IF @MALOP IS NOT NULL AND NOT EXISTS (SELECT 1 FROM LOP WHERE MALOP = @MALOP)
-    BEGIN
-        RAISERROR('MALOP does not exist', 16, 1);
-        RETURN;
-    END
+	-- Kiểm tra MALOP tồn tại
+	if @MALOP is not null and not exists (select 1 from LOP where MALOP = @MALOP)
+	begin
+		raiserror('MALOP does not exist', 16, 1);
+		return;
+	end
 
 	-- Băm mật khẩu bằng MD5
-	DECLARE @HashPass VARBINARY(max);
-	SET @HashPass = HASHBYTES('MD5', @MATKHAU);
+	declare @HashPass varbinary(max);
+	set @HashPass = hashbytes('MD5', @MATKHAU);
 
 	-- Thêm dữ liệu
-	INSERT INTO SINHVIEN (MASV, HOTEN, NGAYSINH, DIACHI, MALOP, TENDN, MATKHAU)
-	VALUES (@MASV, @HOTEN, @NGAYSINH, @DIACHI, @MALOP, @TENDN, @HashPass)
-END
-GO
+	insert into SINHVIEN (MASV, HOTEN, NGAYSINH, DIACHI, MALOP, TENDN, MATKHAU)
+	values (@MASV, @HOTEN, @NGAYSINH, @DIACHI, @MALOP, @TENDN, @HashPass);
+end
+go
+
 --drop procedure SP_INS_SINHVIEN
 go
 -- Cập nhật thông tin sinh viên
-IF EXISTS (SELECT 1 FROM sys.procedures WHERE name = 'SP_UPD_SINHVIEN')
-BEGIN
-    DROP PROC SP_UPD_SINHVIEN
-END
-GO
+if exists (select 1 from sys.procedures where name = 'SP_UPD_SINHVIEN')
+begin
+	drop proc SP_UPD_SINHVIEN
+end
+go
+
 create procedure SP_UPD_SINHVIEN
 (
 	@MANV varchar(20),
-	@MASV varchar(20) ,
-	@HOTEN nvarchar(100) ,
+	@MASV varchar(20),
+	@HOTEN nvarchar(100),
 	@NGAYSINH datetime,
 	@DIACHI nvarchar(200),
 	@MALOP varchar(20),
 	@TENDN nvarchar(100),
 	@MATKHAU varchar(max),
-	@ACTION INT --1 THÊM/ 2 XÓA/ 3 SỬA
+	@ACTION int --1 thêm / 2 xóa / 3 sửa
 )
-As
-BEGIN
-	DECLARE @COUNT int
-	SET @COUNT = (SELECT COUNT(*) FROM LOP WHERE MANV = @MANV AND MALOP = @MALOP)
+as
+begin
+	declare @COUNT int;
+	set @COUNT = (select count(*) from LOP where MANV = @MANV and MALOP = @MALOP);
     
-	IF @COUNT = 1
-		BEGIN
-		IF @ACTION = 1
-			BEGIN EXEC SP_INS_SINHVIEN @MASV, @HOTEN, @NGAYSINH, @DIACHI, @MALOP, @TENDN, @MATKHAU END
-		IF @ACTION = 2
-			BEGIN
-				DELETE FROM SINHVIEN WHERE MASV = @MASV
-			END
-		IF @ACTION = 3								
-			BEGIN
-				DECLARE @EnKey VARBINARY(max);
-				DECLARE @Old_hash VARBINARY(max);
-				DECLARE @Old_tendn NVARCHAR(100);
+	if @COUNT = 1
+	begin
+		if @ACTION = 1
+		begin 
+			exec SP_INS_SINHVIEN @MASV, @HOTEN, @NGAYSINH, @DIACHI, @MALOP, @TENDN, @MATKHAU;
+		end
+
+		if @ACTION = 2
+		begin
+			delete from SINHVIEN where MASV = @MASV;
+		end
+
+		if @ACTION = 3
+		begin
+			declare @EnKey varbinary(max);
+			declare @Old_hash varbinary(max);
+			declare @Old_tendn nvarchar(100);
         
-				-- Lấy giá trị hiện có của tên đăng nhập và mật khẩu
-				SELECT @Old_hash = MATKHAU, @Old_tendn = TENDN 
-				FROM SINHVIEN 
-				WHERE MASV = @MASV;
+			-- Lấy giá trị hiện có của tên đăng nhập và mật khẩu
+			select @Old_hash = MATKHAU, @Old_tendn = TENDN 
+			from SINHVIEN 
+			where MASV = @MASV;
 
-				-- Xử lý mật khẩu: nếu @MATKHAU không được nhập thì giữ nguyên giá trị cũ
-				IF @MATKHAU IS NULL OR @MATKHAU = ''
-					BEGIN
-						SET @EnKey = @Old_hash;
-					END
-				ELSE
-					BEGIN
-						SET @EnKey = CONVERT(VARBINARY,HASHBYTES('MD5', @MATKHAU));
-					END
+			-- Xử lý mật khẩu: nếu @MATKHAU không được nhập thì giữ nguyên giá trị cũ
+			if @MATKHAU is null or @MATKHAU = ''
+			begin
+				set @EnKey = @Old_hash;
+			end
+			else
+			begin
+				set @EnKey = convert(varbinary, hashbytes('MD5', @MATKHAU));
+			end
 
-				UPDATE SINHVIEN
-				SET
-					HOTEN = @HOTEN,
-					NGAYSINH = @NGAYSINH,
-					DIACHI = @DIACHI,
-					MALOP = @MALOP,
-					TENDN = CASE WHEN @TENDN IS NULL OR @TENDN = '' THEN @Old_tendn ELSE @TENDN END,
-					MATKHAU = @EnKey
-				WHERE
-					MASV = @MASV
-				END
-		END
-		SELECT * FROM SINHVIEN WHERE MALOP = @MALOP
-END
-GO
+			update SINHVIEN
+			set
+				HOTEN = @HOTEN,
+				NGAYSINH = @NGAYSINH,
+				DIACHI = @DIACHI,
+				MALOP = @MALOP,
+				TENDN = case when @TENDN is null or @TENDN = '' then @Old_tendn else @TENDN end,
+				MATKHAU = @EnKey
+			where
+				MASV = @MASV;
+		end
+	end
+
+	select * from SINHVIEN where MALOP = @MALOP;
+end
+go
+
 --drop procedure SP_UPD_SINHVIEN
 go
 
 -- Xoá sinh viên
-IF EXISTS (SELECT 1 FROM sys.procedures WHERE name = 'SP_DEL_SINHVIEN')
-BEGIN
-    DROP PROC SP_DEL_SINHVIEN
-END
-GO
+if exists (select 1 from sys.procedures where name = 'SP_DEL_SINHVIEN')
+begin
+	drop proc SP_DEL_SINHVIEN
+end
+go
 
-CREATE PROC SP_DEL_SINHVIEN
+create proc SP_DEL_SINHVIEN
 (
-    @MASV varchar(20),
-    @MANV varchar(20)
+	@MASV varchar(20),
+	@MANV varchar(20)
 )
-AS
-BEGIN
-    SET NOCOUNT ON;
+as
+begin
+	set nocount on;
 
-    -- Kiểm tra đầu vào
-    IF @MASV IS NULL OR @MANV IS NULL
-    BEGIN
-        RAISERROR('MASV or MANV cannot be NULL', 16, 1);
-        RETURN;
-    END
+	-- kiểm tra đầu vào
+	if @MASV is null or @MANV is null
+	begin
+		raiserror('MASV or MANV cannot be NULL', 16, 1);
+		return;
+	end
 
-    -- Kiểm tra nhân viên có tồn tại
-    IF NOT EXISTS (SELECT 1 FROM NHANVIEN WHERE MANV = @MANV)
-    BEGIN
-        RAISERROR('MANV does not exist', 16, 1);
-        RETURN;
-    END
+	-- kiểm tra nhân viên có tồn tại
+	if not exists (select 1 from NHANVIEN where MANV = @MANV)
+	begin
+		raiserror('MANV does not exist', 16, 1);
+		return;
+	end
 
-    -- Kiểm tra sinh viên có tồn tại
-    IF NOT EXISTS (SELECT 1 FROM SINHVIEN WHERE MASV = @MASV)
-    BEGIN
-        RAISERROR('MASV does not exist', 16, 1);
-        RETURN;
-    END
+	-- kiểm tra sinh viên có tồn tại
+	if not exists (select 1 from SINHVIEN where MASV = @MASV)
+	begin
+		raiserror('MASV does not exist', 16, 1);
+		return;
+	end
 
-    -- Kiểm tra quyền: Nhân viên phải quản lý lớp của sinh viên
-    DECLARE @COUNT INT;
-    SET @COUNT = (
-        SELECT COUNT(*)
-        FROM SINHVIEN SV
-        INNER JOIN LOP L ON SV.MALOP = L.MALOP
-        WHERE SV.MASV = @MASV AND L.MANV = @MANV
-    );
+	-- kiểm tra quyền: nhân viên phải quản lý lớp của sinh viên
+	declare @COUNT int;
+	set @COUNT = (
+		select count(*)
+		from SINHVIEN SV
+		inner join LOP L on SV.MALOP = L.MALOP
+		where SV.MASV = @MASV and L.MANV = @MANV
+	);
 
-    IF @COUNT = 0
-    BEGIN
-        RAISERROR('Nhân viên không có quyền xóa sinh viên này', 16, 1);
-        RETURN;
-    END
+	if @COUNT = 0
+	begin
+		raiserror('Nhân viên không có quyền xóa sinh viên này', 16, 1);
+		return;
+	end
 
-    -- Xóa sinh viên
-    BEGIN TRY
-        DELETE FROM SINHVIEN
-        WHERE MASV = @MASV;
+	-- xóa sinh viên
+	begin try
+		delete from SINHVIEN
+		where MASV = @MASV;
 
-        -- Thông báo thành công
-        PRINT 'Sinh viên với MASV = ' + @MASV + ' đã được xóa thành công';
-    END TRY
-    BEGIN CATCH
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        RAISERROR('Lỗi khi xóa sinh viên: %s', 16, 1, @ErrorMessage);
-        RETURN;
-    END CATCH
-END
-GO
+		-- thông báo thành công
+		print 'Sinh viên với MASV = ' + @MASV + ' đã được xóa thành công';
+	end try
+	begin catch
+		declare @ErrorMessage nvarchar(4000) = error_message();
+		raiserror('Lỗi khi xóa sinh viên: %s', 16, 1, @ErrorMessage);
+		return;
+	end catch
+end
+go
 
 create proc SP_UPD_BANGDIEM
 (
@@ -424,125 +436,131 @@ create proc SP_UPD_BANGDIEM
     @MAHP varchar(20),
     @DIEMTHI decimal(4,2)
 )
-AS
-BEGIN
-    SET NOCOUNT ON;
+as
+begin
+    set nocount on;
     
-    DECLARE @PUBKEY varchar(20);
-    DECLARE @COUNT INT;
-    DECLARE @MESSAGE NVARCHAR(200);
-    DECLARE @EnGrade varbinary(max);
+    declare @PUBKEY varchar(20);
+    declare @COUNT int;
+    declare @MESSAGE nvarchar(200);
+    declare @EnGrade varbinary(max);
     
-    -- Kiểm tra quyền của nhân viên đối với sinh viên này
-    -- (Sinh viên phải thuộc lớp do nhân viên quản lý)
-    SET @COUNT = (
-        SELECT COUNT(*) 
-        FROM SINHVIEN SV
-        INNER JOIN LOP L ON SV.MALOP = L.MALOP 
-        WHERE L.MANV = @MANV AND SV.MASV = @MASV
+    -- kiểm tra quyền của nhân viên đối với sinh viên này
+    -- (sinh viên phải thuộc lớp do nhân viên quản lý)
+    set @COUNT = (
+        select count(*) 
+        from SINHVIEN SV
+        inner join LOP L on SV.MALOP = L.MALOP 
+        where L.MANV = @MANV and SV.MASV = @MASV
     );
     
-    -- Nếu nhân viên không có quyền quản lý sinh viên này
-    IF @COUNT = 0
-    BEGIN
-        SET @MESSAGE = 'Nhân viên ' + @MANV + ' không có quyền nhập điểm cho sinh viên ' + @MASV;
-        RAISERROR(@MESSAGE, 16, 1);
-        RETURN;
-    END;
+    -- nếu nhân viên không có quyền quản lý sinh viên này
+    if @COUNT = 0
+    begin
+        set @MESSAGE = 'Nhân viên ' + @MANV + ' không có quyền nhập điểm cho sinh viên ' + @MASV;
+        raiserror(@MESSAGE, 16, 1);
+        return;
+    end;
 
-	-- Kiểm tra nếu Asymmetric Key tồn tại
-	IF NOT EXISTS (SELECT 1 FROM sys.asymmetric_keys WHERE name = @MANV)
-	BEGIN
-		RAISERROR('RSA key does not exist', 16, 1);
-		RETURN;
-	END
+	-- kiểm tra nếu asymmetric key tồn tại
+	if not exists (select 1 from sys.asymmetric_keys where name = @MANV)
+	begin
+		raiserror('RSA key does not exist', 16, 1);
+		return;
+	end
     
-    -- Mã hóa điểm thi bằng khóa công khai của nhân viên
-    SET @PUBKEY = (select PUBKEY from NHANVIEN where MANV = @MANV);;
-	SET @EnGrade = ENCRYPTBYASYMKEY(ASYMKEY_ID(@PUBKEY), CONVERT(varbinary(MAX), CONVERT(INT, @DIEMTHI * 100)));
+    -- mã hóa điểm thi bằng khóa công khai của nhân viên
+    set @PUBKEY = (select PUBKEY from NHANVIEN where MANV = @MANV);
+	set @EnGrade = encryptbyasymkey(asymkey_id(@PUBKEY), convert(varbinary(max), convert(int, @DIEMTHI * 100)));
     
-    -- Kiểm tra xem đã có điểm cho môn học này chưa
-    SET @COUNT = (
-        SELECT COUNT(*) 
-        FROM BANGDIEM 
-        WHERE MASV = @MASV AND MAHP = @MAHP
+    -- kiểm tra xem đã có điểm cho môn học này chưa
+    set @COUNT = (
+        select count(*) 
+        from BANGDIEM 
+        where MASV = @MASV and MAHP = @MAHP
     );
     
-    -- Nếu chưa có điểm, thêm mới
-    IF @COUNT = 0
-    BEGIN
-        INSERT INTO BANGDIEM (MASV, MAHP, DIEMTHI)
-        VALUES (@MASV, @MAHP, @EnGrade);
+    -- nếu chưa có điểm, thêm mới
+    if @COUNT = 0
+    begin
+        insert into BANGDIEM (MASV, MAHP, DIEMTHI)
+        values (@MASV, @MAHP, @EnGrade);
         
-        SET @MESSAGE = 'Đã thêm mới điểm cho sinh viên ' + @MASV + ' môn học ' + @MAHP;
-        PRINT @MESSAGE;
-    END
-    -- Nếu đã có điểm, cập nhật
-    ELSE
-    BEGIN
-        UPDATE BANGDIEM
-        SET DIEMTHI = @EnGrade
-        WHERE MASV = @MASV AND MAHP = @MAHP;
+        set @MESSAGE = 'Đã thêm mới điểm cho sinh viên ' + @MASV + ' môn học ' + @MAHP;
+        print @MESSAGE;
+    end
+    -- nếu đã có điểm, cập nhật
+    else
+    begin
+        update BANGDIEM
+        set DIEMTHI = @EnGrade
+        where MASV = @MASV and MAHP = @MAHP;
         
-        SET @MESSAGE = 'Đã cập nhật điểm cho sinh viên ' + @MASV + ' môn học ' + @MAHP;
-        PRINT @MESSAGE;
-    END;
+        set @MESSAGE = 'Đã cập nhật điểm cho sinh viên ' + @MASV + ' môn học ' + @MAHP;
+        print @MESSAGE;
+    end;
     
-    -- Trả về danh sách điểm của sinh viên
-    SELECT BD.MAHP, HP.TENHP, BD.DIEMTHI
-    FROM BANGDIEM BD
-    JOIN HOCPHAN HP ON BD.MAHP = HP.MAHP
-    WHERE BD.MASV = @MASV;
+    -- trả về danh sách điểm của sinh viên
+    select BD.MAHP, HP.TENHP, BD.DIEMTHI
+    from BANGDIEM BD
+    join HOCPHAN HP on BD.MAHP = HP.MAHP
+    where BD.MASV = @MASV;
     
-END
-GO
+end
+go
+
 --drop procedure SP_UPD_BANGDIEM
-GO
+go
 create procedure SP_SEL_BANGDIEM
 (
 	@MANV varchar(20),
 	@MATKHAU nvarchar(32),
 	@MASV varchar(20)
 )
-As
-BEGIN
-	SET NOCOUNT ON;
-	DECLARE @PUBKEY varchar(20);
-    DECLARE @COUNT INT;
+as
+begin
+	set nocount on;
+	declare @PUBKEY varchar(20);
+    declare @COUNT int;
 
+	if @MANV is null
+    begin
+        raiserror(N'Username does not exist', 16, 1);
+        return;
+    end
 
-	IF @MANV IS NULL
-    BEGIN
-        RAISERROR(N'Username does not exist', 16, 1);
-        RETURN;
-    END
+	select @PUBKEY = PUBKEY from NHANVIEN where @MANV = MANV;
 
-	SELECT @PUBKEY = PUBKEY FROM NHANVIEN WHERE @MANV = MANV;
+	-- kiểm tra nếu asymmetric key tồn tại
+	if not exists (select 1 from sys.asymmetric_keys where name = @MANV)
+	begin
+		raiserror('RSA key does not exist', 16, 1);
+		return;
+	end
 
-	-- Kiểm tra nếu Asymmetric Key tồn tại
-	IF NOT EXISTS (SELECT 1 FROM sys.asymmetric_keys WHERE name = @MANV)
-	BEGIN
-		RAISERROR('RSA key does not exist', 16, 1);
-		RETURN;
-	END
+	declare @OUT nvarchar(max);
+	set @COUNT = (
+        select count(*) 
+        from SINHVIEN 
+        inner join LOP on SINHVIEN.MALOP = LOP.MALOP 
+        where MANV = @MANV and MASV = @MASV
+    );
 
-	DECLARE @OUT nvarchar(max)
-	SET @COUNT = (SELECT COUNT(*) FROM SINHVIEN inner join LOP on SINHVIEN.MALOP = LOP.MALOP WHERE MANV = @MANV AND MASV = @MASV);
+	if @COUNT = 0
+	begin
+		raiserror(N'Nhân viên không có quyền xem điểm của sinh viên này', 16, 1);
+		return;
+	end
 
-	IF @COUNT = 0
-	BEGIN
-		RAISERROR(N'Nhân viên không có quyền xem điểm của sinh viên này', 16, 1);
-		RETURN;
-	END
+	-- hiển thị điểm đã giải mã
+    select BD.MAHP, HP.TENHP, HP.SOTC,
+		   convert(decimal(4,2), convert(int, decryptbyasymkey(asymkey_id(@PUBKEY), BD.DIEMTHI, @MATKHAU)) / 100.0) as DIEMTHI
+    from BANGDIEM BD
+    inner join HOCPHAN HP on BD.MAHP = HP.MAHP
+    where BD.MASV = @MASV;
+end
+go
 
-	-- Hiển thị điểm đã giải mã
-    SELECT BD.MAHP, HP.TENHP, HP.SOTC,
-		   CONVERT(DECIMAL(4,2), CONVERT(INT, DECRYPTBYASYMKEY(ASYMKEY_ID(@PUBKEY), BD.DIEMTHI, @MATKHAU)) / 100.0) AS DIEMTHI
-    FROM BANGDIEM BD
-    INNER JOIN HOCPHAN HP ON BD.MAHP = HP.MAHP
-    WHERE BD.MASV = @MASV;
-END
-GO
 --drop procedure exec SP_SEL_BANGDIEM  'NV01', '123456', '2112308'
 
 -- Lấy thông tin tất cả lớp do nhân viên quản lý
@@ -550,9 +568,9 @@ create proc SP_GET_CL
 (
 	@maNV varchar(20)
 )
-As
-	Begin
-		Select LOP.MALOP, LOP.TENLOP from LOP where LOP.MANV = @maNV
+as
+	begin
+		select LOP.MALOP, LOP.TENLOP from LOP where LOP.MANV = @maNV
 	end
 GO
 --drop proc SP_GET_CL
@@ -562,10 +580,10 @@ create proc SP_CL_STU
 (
 	@maLop varchar(20)
 )
-As
-	Begin
+as
+	begin
 		select SINHVIEN.MASV, SINHVIEN.HOTEN, SINHVIEN.NGAYSINH, SINHVIEN.DIACHI, SINHVIEN.MALOP, SINHVIEN.TENDN, SINHVIEN.MATKHAU from SINHVIEN where SINHVIEN.MALOP = @maLop
-	End
+	end
 go
 
 --SP cho màn hình đăng nhập
@@ -574,30 +592,30 @@ create proc SP_LOG_IN
 	@MANV varchar(20),
 	@MATKHAU varchar(50)
 )
-As
-BEGIN
-	SET NOCOUNT ON;
+as
+begin
+	set nocount on;
 
 	-- Băm mật khẩu SHA1 (cho nhân viên)
-	DECLARE @EnPassSHA1 varbinary(max);
-	SET @EnPassSHA1 = HASHBYTES('SHA1', @MATKHAU);
+	declare @EnPassSHA1 varbinary(max);
+	set @EnPassSHA1 = hashbytes('SHA1', @MATKHAU);
 
 	-- Kiểm tra đăng nhập cho nhân viên
-    IF EXISTS (SELECT 1 FROM NHANVIEN WHERE MANV = @MANV AND MATKHAU = @EnPassSHA1)
-    BEGIN
+    if exists (select 1 from NHANVIEN where MANV = @MANV and MATKHAU = @EnPassSHA1)
+    begin
         -- Trả về thông tin nhân viên nếu thành công
-        SELECT MANV, HOTEN, EMAIL
-        FROM NHANVIEN
-        WHERE MANV = @MANV AND MATKHAU = @EnPassSHA1;
-    END
-    ELSE
-    BEGIN
+        select MANV, HOTEN, EMAIL
+        from NHANVIEN
+        where MANV = @MANV and MATKHAU = @EnPassSHA1;
+    end
+    else
+    begin
         -- Thông báo lỗi nếu thất bại
-        RAISERROR('Incorret username/id or password', 16, 1);
-    END
-END
+        raiserror('Incorret username/id or password', 16, 1);
+    end
+end
+go
 
-GO
 --exec SP_LOG_IN 'NVA', '123456'
 --HOCPHAN
 INSERT INTO DBO.HOCPHAN VALUES('MTH01', N'Phương Pháp Tính', 4);
