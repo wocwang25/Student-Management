@@ -1,4 +1,4 @@
-﻿--CAU LENH TAO DB
+﻿-- Câu lệnh tạo Database
 use master
 go
 if DB_ID('QLSVNhom') is not null
@@ -14,7 +14,10 @@ alter database QLSVNhom
 set Compatibility_Level = 120;
 go
 
---CAC CAU LENH TAO TABLE
+-- Các câu lệnh tạo table
+use QLSVNhom
+go
+
 create table NHANVIEN
 (
 	MANV varchar(20) not null,
@@ -63,7 +66,7 @@ create table BANGDIEM
 	constraint PK_BD primary key (MASV, MAHP)
 );
 
- --Quan he
+-- Quan hệ
 alter table LOP
 add constraint FK_L_NV foreign key (MANV) references NHANVIEN (MANV)
 on delete cascade
@@ -74,7 +77,7 @@ add constraint FK_SV_L foreign key (MALOP) references LOP (MALOP)
 on delete cascade
 on update cascade;
 
-alter table BANGDIEM --drop constraint FK_BD_HP
+alter table BANGDIEM
 add constraint FK_BD_SV foreign key (MASV) references SINHVIEN (MASV)
 on delete cascade
 on update cascade;
@@ -87,7 +90,7 @@ on update cascade;
 alter table NHANVIEN add constraint UQ_NV_TENDN unique (TENDN);
 alter table SINHVIEN add constraint UQ_SV_TENDN unique (TENDN);
 
---Tao MASTERKEY
+-- Tạo MASTERKEY
 if not exists
 (
 	select *
@@ -111,6 +114,7 @@ go
 --drop master key
 --drop certificate myCert	
 go
+
 -- Câu c
 ---- i. Stored dùng để thêm nhân viên: SP_INS_PUBLIC_NHANVIEN
 if exists (select 1 from sys.procedures where name = 'SP_INS_PUBLIC_NHANVIEN')
@@ -284,6 +288,7 @@ go
 
 --drop procedure SP_INS_SINHVIEN
 go
+
 -- Cập nhật thông tin sinh viên
 if exists (select 1 from sys.procedures where name = 'SP_UPD_SINHVIEN')
 begin
@@ -300,61 +305,112 @@ create procedure SP_UPD_SINHVIEN
 	@DIACHI nvarchar(200),
 	@MALOP varchar(20),
 	@TENDN nvarchar(100),
-	@MATKHAU varchar(max),
-	@ACTION int --1 thêm / 2 xóa / 3 sửa
+	@MATKHAU varchar(50)
 )
 as
 begin
-	declare @COUNT int;
-	set @COUNT = (select count(*) from LOP where MANV = @MANV and MALOP = @MALOP);
-    
-	if @COUNT = 1
+	set nocount on;
+	
+	-- Kiểm tra đầu vào
+	if @MASV is null or @MANV is null
 	begin
-		if @ACTION = 1
-		begin 
-			exec SP_INS_SINHVIEN @MASV, @HOTEN, @NGAYSINH, @DIACHI, @MALOP, @TENDN, @MATKHAU;
-		end
-
-		if @ACTION = 2
-		begin
-			delete from SINHVIEN where MASV = @MASV;
-		end
-
-		if @ACTION = 3
-		begin
-			declare @EnKey varbinary(max);
-			declare @Old_hash varbinary(max);
-			declare @Old_tendn nvarchar(100);
-        
-			-- Lấy giá trị hiện có của tên đăng nhập và mật khẩu
-			select @Old_hash = MATKHAU, @Old_tendn = TENDN 
-			from SINHVIEN 
-			where MASV = @MASV;
-
-			-- Xử lý mật khẩu: nếu @MATKHAU không được nhập thì giữ nguyên giá trị cũ
-			if @MATKHAU is null or @MATKHAU = ''
-			begin
-				set @EnKey = @Old_hash;
-			end
-			else
-			begin
-				set @EnKey = convert(varbinary, hashbytes('MD5', @MATKHAU));
-			end
-
-			update SINHVIEN
-			set
-				HOTEN = @HOTEN,
-				NGAYSINH = @NGAYSINH,
-				DIACHI = @DIACHI,
-				MALOP = @MALOP,
-				TENDN = case when @TENDN is null or @TENDN = '' then @Old_tendn else @TENDN end,
-				MATKHAU = @EnKey
-			where
-				MASV = @MASV;
-		end
+		raiserror(N'MASV hoặc MANV không được để trống', 16, 1);
+		return;
 	end
 
-	select * from SINHVIEN where MALOP = @MALOP;
+	-- Kiểm tra nhân viên có tồn tại
+	if not exists (select 1 from NHANVIEN where MANV = @MANV)
+	begin
+		raiserror(N'MANV không tồn tại', 16, 1);
+		return;
+	end
+
+	-- Kiểm tra sinh viên có tồn tại
+	if not exists (select 1 from SINHVIEN where MASV = @MASV)
+	begin
+		raiserror(N'MASV không tồn tại', 16, 1);
+		return;
+	end
+
+	-- Kiểm tra quyền: nhân viên phải quản lý lớp của sinh viên
+	declare @COUNT int;
+	set @COUNT = (
+		select count(*)
+		from SINHVIEN SV
+		inner join LOP L on SV.MALOP = L.MALOP
+		where SV.MASV = @MASV and L.MANV = @MANV
+	);
+
+	if @COUNT = 0
+	begin
+		raiserror(N'Nhân viên không có quyền cập nhật thông tin cho sinh viên này', 16, 1);
+		return;
+	end
+
+	-- Kiểm tra HOTEN không null
+    if @HOTEN is null
+    begin
+        raiserror(N'HOTEN không được để trống', 16, 1);
+        return;
+    end
+
+    -- Kiểm tra TENDN mới không trùng (nếu cung cấp)
+    if @TENDN is not null and @TENDN <> '' and exists (
+		select 1 from SINHVIEN
+		where TENDN = @TENDN and MASV <> @MASV
+    )
+    begin
+        raiserror(N'TENDN đã tồn tại', 16, 1);
+        return;
+    end
+
+    -- Kiểm tra MALOP tồn tại (nếu cung cấp)
+    if @MALOP is not null and not exists (select 1 from LOP where MALOP = @MALOP)
+    begin
+        raiserror(N'MALOP không tồn tại', 16, 1);
+        return;
+    end
+
+	-- Chỉnh sửa thông tin của sinh viên
+	declare @EnKey varbinary(max);
+	declare @Old_hash varbinary(max);
+	declare @Old_tendn nvarchar(100);
+        
+	-- Lấy giá trị hiện có của tên đăng nhập và mật khẩu
+	select @Old_hash = MATKHAU, @Old_tendn = TENDN 
+	from SINHVIEN 
+	where MASV = @MASV;
+
+	-- Xử lý mật khẩu: nếu @MATKHAU không được nhập thì giữ nguyên giá trị cũ
+	if @MATKHAU is null or @MATKHAU = ''
+	begin
+		set @EnKey = @Old_hash;
+	end
+	else
+	begin
+		set @EnKey = hashbytes('MD5', @MATKHAU);
+	end
+
+	-- Cập nhật thông tin sinh viên
+	begin try
+		update SINHVIEN
+		set
+			HOTEN = @HOTEN,
+			NGAYSINH = @NGAYSINH,
+			DIACHI = @DIACHI,
+			MALOP = @MALOP,
+			TENDN = case when @TENDN is null or @TENDN = '' then @Old_tendn else @TENDN end,
+			MATKHAU = @EnKey
+		where
+			MASV = @MASV;
+		-- Trả về bản ghi vừa cập nhật
+		select * from SINHVIEN where MALOP = @MALOP;
+	end try
+	begin catch
+		declare @ErrorMessage nvarchar(max) = ERROR_MESSAGE();
+        raiserror(N'Lỗi khi cập nhật sinh viên: %s', 16, 1, @ErrorMessage);
+        return;
+	end catch
 end
 go
 
@@ -377,28 +433,28 @@ as
 begin
 	set nocount on;
 
-	-- kiểm tra đầu vào
+	-- Kiểm tra đầu vào
 	if @MASV is null or @MANV is null
 	begin
 		raiserror(N'MASV hoặc MANV không được để trống', 16, 1);
 		return;
 	end
 
-	-- kiểm tra nhân viên có tồn tại
+	-- Kiểm tra nhân viên có tồn tại
 	if not exists (select 1 from NHANVIEN where MANV = @MANV)
 	begin
 		raiserror(N'MANV không tồn tại', 16, 1);
 		return;
 	end
 
-	-- kiểm tra sinh viên có tồn tại
+	-- Kiểm tra sinh viên có tồn tại
 	if not exists (select 1 from SINHVIEN where MASV = @MASV)
 	begin
 		raiserror(N'MASV không tồn tại', 16, 1);
 		return;
 	end
 
-	-- kiểm tra quyền: nhân viên phải quản lý lớp của sinh viên
+	-- Kiểm tra quyền: nhân viên phải quản lý lớp của sinh viên
 	declare @COUNT int;
 	set @COUNT = (
 		select count(*)
@@ -413,12 +469,12 @@ begin
 		return;
 	end
 
-	-- xóa sinh viên
+	-- Xóa sinh viên
 	begin try
 		delete from SINHVIEN
 		where MASV = @MASV;
 
-		-- thông báo thành công
+		-- Thông báo thành công
 		print 'Sinh viên với MASV = ' + @MASV + ' đã được xóa thành công';
 	end try
 	begin catch
@@ -445,7 +501,7 @@ begin
     declare @MESSAGE nvarchar(200);
     declare @EnGrade varbinary(max);
     
-    -- kiểm tra quyền của nhân viên đối với sinh viên này
+    -- Kiểm tra quyền của nhân viên đối với sinh viên này
     -- (sinh viên phải thuộc lớp do nhân viên quản lý)
     set @COUNT = (
         select count(*) 
@@ -454,7 +510,7 @@ begin
         where L.MANV = @MANV and SV.MASV = @MASV
     );
     
-    -- nếu nhân viên không có quyền quản lý sinh viên này
+    -- Nếu nhân viên không có quyền quản lý sinh viên này
     if @COUNT = 0
     begin
         set @MESSAGE = 'Nhân viên ' + @MANV + ' không có quyền nhập điểm cho sinh viên ' + @MASV;
@@ -462,25 +518,25 @@ begin
         return;
     end;
 
-	-- kiểm tra nếu asymmetric key tồn tại
+	-- Kiểm tra nếu asymmetric key tồn tại
 	if not exists (select 1 from sys.asymmetric_keys where name = @MANV)
 	begin
 		raiserror(N'Khóa RSA không tồn tại', 16, 1);
 		return;
 	end
     
-    -- mã hóa điểm thi bằng khóa công khai của nhân viên
+    -- Mã hóa điểm thi bằng khóa công khai của nhân viên
     set @PUBKEY = (select PUBKEY from NHANVIEN where MANV = @MANV);
 	set @EnGrade = encryptbyasymkey(asymkey_id(@PUBKEY), convert(varbinary(max), convert(int, @DIEMTHI * 100)));
     
-    -- kiểm tra xem đã có điểm cho môn học này chưa
+    -- Kiểm tra xem đã có điểm cho môn học này chưa
     set @COUNT = (
         select count(*) 
         from BANGDIEM 
         where MASV = @MASV and MAHP = @MAHP
     );
     
-    -- nếu chưa có điểm, thêm mới
+    -- Nếu chưa có điểm, thêm mới
     if @COUNT = 0
     begin
         insert into BANGDIEM (MASV, MAHP, DIEMTHI)
@@ -489,7 +545,7 @@ begin
         set @MESSAGE = 'Đã thêm mới điểm cho sinh viên ' + @MASV + ' môn học ' + @MAHP;
         print @MESSAGE;
     end
-    -- nếu đã có điểm, cập nhật
+    -- Nếu đã có điểm, cập nhật
     else
     begin
         update BANGDIEM
@@ -500,7 +556,7 @@ begin
         print @MESSAGE;
     end;
     
-    -- trả về danh sách điểm của sinh viên
+    -- Trả về danh sách điểm của sinh viên
     select BD.MAHP, HP.TENHP, BD.DIEMTHI
     from BANGDIEM BD
     join HOCPHAN HP on BD.MAHP = HP.MAHP
@@ -531,7 +587,7 @@ begin
 
 	select @PUBKEY = PUBKEY from NHANVIEN where @MANV = MANV;
 
-	-- kiểm tra nếu asymmetric key tồn tại
+	-- Kiểm tra nếu asymmetric key tồn tại
 	if not exists (select 1 from sys.asymmetric_keys where name = @MANV)
 	begin
 		raiserror(N'Khóa RSA không tồn tại', 16, 1);
@@ -552,7 +608,7 @@ begin
 		return;
 	end
 
-	-- hiển thị điểm đã giải mã
+	-- Hiển thị điểm đã giải mã
     select BD.MAHP, HP.TENHP, HP.SOTC,
 		   convert(decimal(4,2), convert(int, decryptbyasymkey(asymkey_id(@PUBKEY), BD.DIEMTHI, @MATKHAU)) / 100.0) as DIEMTHI
     from BANGDIEM BD
