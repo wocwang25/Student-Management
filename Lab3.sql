@@ -409,7 +409,7 @@ begin
 
 	if @COUNT = 0
 	begin
-		raiserror('Nhân viên không có quyền xóa sinh viên này', 16, 1);
+		raiserror(N'Nhân viên không có quyền xóa sinh viên này', 16, 1);
 		return;
 	end
 
@@ -423,7 +423,7 @@ begin
 	end try
 	begin catch
 		declare @ErrorMessage nvarchar(4000) = error_message();
-		raiserror('Lỗi khi xóa sinh viên: %s', 16, 1, @ErrorMessage);
+		raiserror(N'Lỗi khi xóa sinh viên: %s', 16, 1, @ErrorMessage);
 		return;
 	end catch
 end
@@ -465,7 +465,7 @@ begin
 	-- kiểm tra nếu asymmetric key tồn tại
 	if not exists (select 1 from sys.asymmetric_keys where name = @MANV)
 	begin
-		raiserror(N'RSA key does not exist', 16, 1);
+		raiserror(N'Khóa RSA không tồn tại', 16, 1);
 		return;
 	end
     
