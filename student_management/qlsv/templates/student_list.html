@@ -289,6 +289,20 @@ viên{% endblock %} {% block extra_css %}
     </div>
   </div>
 
+  {% if messages %}
+  <div class="messages">
+    {% for message in messages %} {% if 'edit_student' in message.extra_tags or
+    'add_student' in message.extra_tags or 'remove_student' in
+    message.extra_tags %}
+    <div
+      class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}"
+    >
+      {{ message }}
+    </div>
+    {% endif %} {% endfor %}
+  </div>
+  {% endif %}
+
   <!-- Bảng sinh viên -->
   <table class="data-table">
     <thead>

@@ -160,7 +160,7 @@ def view_employee_info(request):
             if result:
                 tendn = result[0]
     except Exception as e:
-        messages.error(request, f"Lỗi khi lấy thông tin nhân viên: {str(e)}")
+        messages.error(request, f"Lỗi khi lấy thông tin nhân viên: {str(e)}", extra_tags='employee_info')
         return redirect('dashboard')
     
     employee_info = None
@@ -312,7 +312,7 @@ def add_student(request, malop):
             elif 'MALOP does not exist' in error_message:
                 error_message = "Mã lớp không tồn tại!"
                 
-            messages.error(request, f"Lỗi khi thêm sinh viên: {error_message}")
+            messages.error(request, f"Lỗi khi thêm sinh viên: {error_message}", extra_tags='add_student')
             
             # Nếu là AJAX request thì trả về JSON
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -461,21 +461,20 @@ def input_score(request, malop, masv):
                 })
             
             # Gọi SP để mã hóa và lưu điểm
-            execute_stored_procedure("SP_UPD_BANGDIEM", {
-                "MANV": manv,
-                "MASV": masv,
-                "MAHP": mahp,
-                "DIEMTHI": diemthi
-            })
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "EXEC SP_UPD_BANGDIEM @MANV=%s, @MASV=%s, @MAHP=%s, @DIEMTHI=%s",
+                    [manv, masv, mahp, diemthi]
+                )
             
             # Tìm tên môn học để hiển thị thông báo
             tenhp = next((subject['tenhp'] for subject in subjects if subject['mahp'] == mahp), mahp)
             
-            messages.success(request, f"Đã lưu điểm cho môn {tenhp} thành công")
+            messages.success(request, f"Đã lưu điểm cho môn {tenhp} thành công", extra_tags='input_score')
             return redirect('input_score', malop=malop, masv=masv)
             
         except Exception as e:
-            messages.error(request, f"Lỗi khi cập nhật điểm: {str(e)}")
+            messages.error(request, f"Lỗi khi cập nhật điểm: {str(e)}", extra_tags='input_score')
     
     return render(request, 'input_score.html', {
         'masv': masv, 
@@ -551,6 +550,12 @@ def view_student_scores(request, malop, masv):
 @staff_login_required
 @check_class_permission
 def edit_student(request, malop, masv):
+    # Lấy tên lớp để hiển thị
+    try:
+        tenlop = Lop.objects.filter(malop=malop).values('ten').first()['ten']
+    except:
+        tenlop = "Không xác định"
+    
     if request.method == 'POST':
         manv = request.session.get('manv')
         hoten = request.POST.get('hoten')
@@ -559,26 +564,70 @@ def edit_student(request, malop, masv):
         
         tendn = request.POST.get('tendn', '')
         mk = request.POST.get('mk', '')
-        tenlop = Lop.objects.filter(malop=malop).values('ten').first()['ten']
         
+        # Xử lý trường hợp mật khẩu trống
         if not mk:
             mk = None
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "EXEC SP_UPD_SINHVIEN @MANV=%s, @MASV=%s, @HOTEN=%s, @NGAYSINH=%s, @DIACHI=%s, @MALOP=%s, @TENDN=%s, @MATKHAU=%s, @ACTION=3",
-                [manv, masv, hoten, ngaysinh, diachi, malop, tendn, mk]
-            )
             
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            from django.http import JsonResponse
-            return JsonResponse({'status': 'success'})
-        else:
-            return redirect('student_list', malop=malop)
+        try:
+            # Gọi stored procedure để cập nhật sinh viên
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "EXEC SP_UPD_SINHVIEN @MANV=%s, @MASV=%s, @HOTEN=%s, @NGAYSINH=%s, @DIACHI=%s, @MALOP=%s, @TENDN=%s, @MATKHAU=%s",
+                    [manv, masv, hoten, ngaysinh, diachi, malop, tendn, mk]
+                )
+            
+            messages.success(request, f"Đã cập nhật thông tin sinh viên {hoten} thành công!", extra_tags='edit_student')
+            
+            # Xử lý AJAX request
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'status': 'success',
+                    'message': f"Đã cập nhật thông tin sinh viên {hoten} thành công!"
+                })
+            else:
+                return redirect('student_list', malop=malop)
+                
+        except Exception as e:
+            error_message = str(e)
+            
+            # Xử lý các loại lỗi từ stored procedure
+            if 'MASV hoặc MANV không được để trống' in error_message:
+                error_message = "Thiếu thông tin sinh viên hoặc nhân viên"
+            elif 'MANV không tồn tại' in error_message:
+                error_message = "Tài khoản nhân viên không hợp lệ"
+            elif 'MASV không tồn tại' in error_message:
+                error_message = "Sinh viên không tồn tại"
+            elif 'Nhân viên không có quyền cập nhật thông tin cho sinh viên này' in error_message:
+                error_message = "Bạn không có quyền cập nhật thông tin cho sinh viên này"
+            elif 'HOTEN không được để trống' in error_message:
+                error_message = "Họ tên không được để trống"
+            elif 'TENDN đã tồn tại' in error_message:
+                error_message = "Tên đăng nhập đã tồn tại"
+            elif 'MALOP không tồn tại' in error_message:
+                error_message = "Lớp không tồn tại"
+            
+            messages.error(request, f"Lỗi: {error_message}", extra_tags='edit_student')
+            
+            # Xử lý AJAX request
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'status': 'error',
+                    'message': error_message
+                })
     
     # Lấy thông tin sinh viên hiện tại để hiển thị form chỉnh sửa
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT MASV, HOTEN, NGAYSINH, DIACHI FROM SINHVIEN WHERE MASV=%s", [masv])
-        student = cursor.fetchone()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT MASV, HOTEN, NGAYSINH, DIACHI, TENDN FROM SINHVIEN WHERE MASV=%s", [masv])
+            student = cursor.fetchone()
+        
+        if not student:
+            messages.error(request, "Không tìm thấy sinh viên")
+            return redirect('student_list', malop=malop)
+    except Exception as e:
+        messages.error(request, f"Lỗi khi lấy thông tin sinh viên: {str(e)}", extra_tags='edit_student')
+        return redirect('student_list', malop=malop)
     
     # Render template chỉnh sửa sinh viên
     return render(request, 'student_list.html', {
