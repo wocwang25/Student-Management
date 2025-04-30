@@ -135,21 +135,21 @@ begin
 	-- Kiểm tra các cột bắt buộc
 	if @MANV is null or @HOTEN is null or @TENDN is null or @MK is null
 	begin
-		raiserror('Required fields cannot be NULL', 16, 1);
+		raiserror(N'Các trường dữ liệu cần thiết không được để trống', 16, 1);
 		return;
 	end
 
 	-- Kiểm tra nếu nhân viên đã tồn tại
 	if exists (select 1 from NHANVIEN where MANV = @MANV)
 	begin
-		raiserror('@MANV is exist', 16, 1);
+		raiserror(N'@MANV đã tồn tại', 16, 1);
 		return;
 	end
 
 	-- Kiểm tra TENDN đã tồn tại
 	if exists (select 1 from NHANVIEN where TENDN = @TENDN)
 	begin
-		raiserror('TENDN is exist', 16, 1);
+		raiserror(N'TENDN đã tồn tại', 16, 1);
 		return;
 	end
 
@@ -206,14 +206,14 @@ begin
 
 	if @MANV is null
 	begin
-		raiserror('Incorrect TENDN or MK', 16, 1);
+		raiserror(N'TENDN hoặc MK không đúng', 16, 1);
 		return;
 	end
 
 	-- Kiểm tra nếu Asymmetric Key tồn tại
 	if not exists (select 1 from sys.asymmetric_keys where name = @MANV)
 	begin
-		raiserror('RSA key does not exist', 16, 1);
+		raiserror(N'Khóa RSA không tồn tại', 16, 1);
 		return;
 	end
 
@@ -247,28 +247,28 @@ begin
 	-- Kiểm tra các cột bắt buộc
 	if @MASV is null or @HOTEN is null or @TENDN is null or @MATKHAU is null
 	begin
-		raiserror('Required fields cannot be NULL', 16, 1);
+		raiserror(N'Các trường dữ liệu cần thiết không được để trống', 16, 1);
 		return;
 	end
 
 	-- Kiểm tra sinh viên đã tồn tại hay chưa
 	if exists (select 1 from SINHVIEN where MASV = @MASV)
 	begin
-		raiserror('@MASV is exist', 16, 1);
+		raiserror(N'@MASV đã tồn tại', 16, 1);
 		return;
 	end
 
 	-- Kiểm tra TENDN đã tồn tại
 	if exists (select 1 from SINHVIEN where TENDN = @TENDN)
 	begin
-		raiserror('TENDN is exist', 16, 1);
+		raiserror(N'TENDN đã tồn tại', 16, 1);
 		return;
 	end
 
 	-- Kiểm tra MALOP tồn tại
 	if @MALOP is not null and not exists (select 1 from LOP where MALOP = @MALOP)
 	begin
-		raiserror('MALOP does not exist', 16, 1);
+		raiserror(N'MALOP không tồn tại', 16, 1);
 		return;
 	end
 
@@ -380,21 +380,21 @@ begin
 	-- kiểm tra đầu vào
 	if @MASV is null or @MANV is null
 	begin
-		raiserror('MASV or MANV cannot be NULL', 16, 1);
+		raiserror(N'MASV hoặc MANV không được để trống', 16, 1);
 		return;
 	end
 
 	-- kiểm tra nhân viên có tồn tại
 	if not exists (select 1 from NHANVIEN where MANV = @MANV)
 	begin
-		raiserror('MANV does not exist', 16, 1);
+		raiserror(N'MANV không tồn tại', 16, 1);
 		return;
 	end
 
 	-- kiểm tra sinh viên có tồn tại
 	if not exists (select 1 from SINHVIEN where MASV = @MASV)
 	begin
-		raiserror('MASV does not exist', 16, 1);
+		raiserror(N'MASV không tồn tại', 16, 1);
 		return;
 	end
 
@@ -465,7 +465,7 @@ begin
 	-- kiểm tra nếu asymmetric key tồn tại
 	if not exists (select 1 from sys.asymmetric_keys where name = @MANV)
 	begin
-		raiserror('RSA key does not exist', 16, 1);
+		raiserror(N'RSA key does not exist', 16, 1);
 		return;
 	end
     
@@ -525,7 +525,7 @@ begin
 
 	if @MANV is null
     begin
-        raiserror(N'Username does not exist', 16, 1);
+        raiserror(N'TenDN không tồn tại', 16, 1);
         return;
     end
 
@@ -534,7 +534,7 @@ begin
 	-- kiểm tra nếu asymmetric key tồn tại
 	if not exists (select 1 from sys.asymmetric_keys where name = @MANV)
 	begin
-		raiserror('RSA key does not exist', 16, 1);
+		raiserror(N'Khóa RSA không tồn tại', 16, 1);
 		return;
 	end
 
@@ -611,7 +611,7 @@ begin
     else
     begin
         -- Thông báo lỗi nếu thất bại
-        raiserror('Incorret username/id or password', 16, 1);
+        raiserror(N'Tên đăng nhập/id hoặc mật khẩu không đúng', 16, 1);
     end
 end
 go
