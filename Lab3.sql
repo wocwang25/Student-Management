@@ -234,6 +234,12 @@ go
 
 -- Câu d
 -- Thêm sinh viên
+if exists (select 1 from sys.procedures where name = 'SP_INS_SINHVIEN')
+begin
+	drop proc SP_INS_SINHVIEN
+end
+go
+
 create proc SP_INS_SINHVIEN
 (
 	@MASV varchar(20),
@@ -407,7 +413,7 @@ begin
 		select * from SINHVIEN where MALOP = @MALOP;
 	end try
 	begin catch
-		declare @ErrorMessage nvarchar(max) = ERROR_MESSAGE();
+		declare @ErrorMessage nvarchar(max) = error_message();
         raiserror(N'Lỗi khi cập nhật sinh viên: %s', 16, 1, @ErrorMessage);
         return;
 	end catch
@@ -482,6 +488,13 @@ begin
 		raiserror(N'Lỗi khi xóa sinh viên: %s', 16, 1, @ErrorMessage);
 		return;
 	end catch
+end
+go
+
+-- Nhập điểm cho sinh viên
+if exists (select 1 from sys.procedures where name = 'SP_UPD_BANGDIEM')
+begin
+	drop proc SP_UPD_BANGDIEM
 end
 go
 
@@ -566,7 +579,14 @@ end
 go
 
 --drop procedure SP_UPD_BANGDIEM
+
+-- Lấy danh sách điểm của 1 sinh viên
+if exists (select 1 from sys.procedures where name = 'SP_SEL_BANGDIEM')
+begin
+	drop proc SP_SEL_BANGDIEM
+end
 go
+
 create procedure SP_SEL_BANGDIEM
 (
 	@MANV varchar(20),
@@ -620,29 +640,95 @@ go
 --drop procedure exec SP_SEL_BANGDIEM  'NV01', '123456', '2112308'
 
 -- Lấy thông tin tất cả lớp do nhân viên quản lý
+if exists (select 1 from sys.procedures where name = 'SP_GET_CL')
+begin
+	drop proc SP_GET_CL
+end
+go
+
 create proc SP_GET_CL
 (
-	@maNV varchar(20)
+	@MANV varchar(20)
 )
 as
-	begin
-		select LOP.MALOP, LOP.TENLOP from LOP where LOP.MANV = @maNV
-	end
-GO
+begin
+	select LOP.MALOP, LOP.TENLOP from LOP where LOP.MANV = @MANV
+end
+go
 --drop proc SP_GET_CL
 
 -- Lấy thông tin sinh viên trong một lớp
-create proc SP_CL_STU
-(
-	@maLop varchar(20)
-)
-as
-	begin
-		select SINHVIEN.MASV, SINHVIEN.HOTEN, SINHVIEN.NGAYSINH, SINHVIEN.DIACHI, SINHVIEN.MALOP, SINHVIEN.TENDN, SINHVIEN.MATKHAU from SINHVIEN where SINHVIEN.MALOP = @maLop
-	end
+if exists (select 1 from sys.procedures where name = 'SP_CL_STU')
+begin
+	drop proc SP_CL_STU
+end
 go
 
+create proc SP_CL_STU
+(
+	@MALOP varchar(20),
+	@MANV varchar(20)
+)
+as
+begin
+	set nocount on;
+
+	-- Kiểm tra đầu vào
+    if @MALOP is null or @MANV is null
+    begin
+        raiserror(N'MALOP hoặc MANV không được để trống', 16, 1);
+        return;
+    end
+
+    -- Kiểm tra nhân viên có tồn tại
+    if not exists (select 1 from NHANVIEN where MANV = @MANV)
+    begin
+        raiserror(N'MANV không tồn tại', 16, 1);
+        return;
+    end
+
+    -- Kiểm tra lớp có tồn tại
+    if not exists (select 1 from LOP where MALOP = @MALOP)
+    begin
+        raiserror(N'MALOP không tồn tại', 16, 1);
+        return;
+    end
+
+    -- Kiểm tra quyền: Nhân viên phải quản lý lớp
+    if not exists (
+        select 1 
+        from LOP 
+        where MALOP = @MALOP and MANV = @MANV
+    )
+    begin
+        raiserror(N'Nhân viên không có quyền truy cập thông tin lớp này', 16, 1);
+        return;
+    end
+
+	-- Truy vấn thông tin sinh viên
+    begin try
+        select MASV, HOTEN, NGAYSINH, DIACHI, MALOP, TENDN
+        from SINHVIEN 
+        where MALOP = @MALOP;
+    end try
+    begin catch
+        declare @ErrorMessage nvarchar(4000) = error_message();
+        raiserror(N'Lỗi khi truy vấn thông tin sinh viên: %s', 16, 1, @ErrorMessage);
+        return;
+    end catch
+	
+end
+go
+
+-- exec SP_CL_STU 'CNTT', 'NV01'
+
 --SP cho màn hình đăng nhập
+if exists (select 1 from sys.procedures where name = 'SP_LOG_IN')
+begin
+	drop proc SP_LOG_IN
+end
+go
+
 create proc SP_LOG_IN
 (
 	@MANV varchar(20),
