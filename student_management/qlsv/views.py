@@ -199,20 +199,42 @@ def view_employee_info(request):
 @staff_login_required
 @check_class_permission
 def student_list(request, malop):
+    # Lấy thông tin lớp
     try:
         lop = Lop.objects.get(malop=malop)
     except Lop.DoesNotExist:
         lop = {'malop': malop, 'tenlop': 'Lớp không tồn tại'}
     
-    # Gọi stored procedure để lấy danh sách sinh viên
-    with connection.cursor() as cursor:
-        cursor.execute("EXEC SP_CL_STU @maLop=%s", [malop])
-        students = cursor.fetchall()
-
-    return render(request, 'student_list.html', {
-        'students': students,
-        'lop': lop
-    })
+    # Lấy mã nhân viên từ session
+    manv = request.session.get('manv')
+    
+    try:
+        # Gọi stored procedure để lấy danh sách sinh viên
+        with connection.cursor() as cursor:
+            cursor.execute("EXEC SP_CL_STU @MALOP=%s, @MANV=%s", [malop, manv])
+            students = cursor.fetchall()
+        
+        return render(request, 'student_list.html', {
+            'students': students,
+            'lop': lop
+        })
+            
+    except Exception as e:
+        error_message = str(e)
+        
+        # Xử lý các loại lỗi từ stored procedure
+        if 'MALOP hoặc MANV không được để trống' in error_message:
+            error_message = "Thiếu thông tin lớp hoặc nhân viên"
+        elif 'MANV không tồn tại' in error_message:
+            error_message = "Tài khoản nhân viên không hợp lệ"
+        elif 'MALOP không tồn tại' in error_message:
+            error_message = "Lớp không tồn tại"
+        elif 'Nhân viên không có quyền truy cập thông tin lớp này' in error_message:
+            error_message = "Bạn không có quyền truy cập danh sách sinh viên của lớp này"
+        
+        # Hiển thị thông báo lỗi
+        messages.error(request, error_message, extra_tags='student_list')
+        return redirect('dashboard')
     
 @staff_login_required
 @check_class_permission
