@@ -557,17 +557,27 @@ viên{% endblock %} {% block extra_css %}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           `;
 
-              document
-                .querySelector(".student-list-container")
-                .prepend(alertDiv);
+              document.querySelector(".student-list-container").prepend(alertDiv);
 
-              // Xóa hàng trong bảng
-              document.querySelector(`tr[data-masv="${masv}"]`).remove();
-
-              // Reload sau 1.5 giây
+              // Tìm và xóa hàng chứa sinh viên đã xóa (dựa vào MASV)
+              const rows = document.querySelectorAll('.data-table tbody tr');
+              rows.forEach(row => {
+                if (row.querySelector('td:first-child').textContent.trim() === masv) {
+                  row.remove();
+                }
+              });
+              
+              // Tự động ẩn thông báo sau 5 giây
               setTimeout(() => {
-                location.reload();
-              }, 1500);
+                alertDiv.classList.remove('show');
+                setTimeout(() => alertDiv.remove(), 150);
+              }, 5000);
+              
+              // Cập nhật số lượng kết quả tìm kiếm nếu đang tìm kiếm
+              if (document.getElementById('searchResults').style.display === 'block') {
+                const resultCount = document.getElementById('resultCount');
+                resultCount.textContent = parseInt(resultCount.textContent) - 1;
+              }
             } else {
               // Hiển thị lỗi
               const alertDiv = document.createElement("div");

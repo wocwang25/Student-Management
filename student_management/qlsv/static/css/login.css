@@ -108,3 +108,25 @@ body {
     font-size: 14px;
     margin-top: 20px;
 }
+
+#login-form, #forgot-form {
+    display: none; /* Ẩn cả hai form mặc định */
+}
+
+/* Form nào active sẽ hiển thị */
+.active {
+    display: block !important;
+}
+
+.back-link {
+    display: block;
+    text-align: center;
+    margin-top: 15px;
+    color: #4285f4;
+    text-decoration: none;
+    position: relative;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}

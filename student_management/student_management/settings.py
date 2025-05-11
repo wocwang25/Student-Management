@@ -142,3 +142,13 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # Thay thế bằng máy chủ SMTP của bạn
+EMAIL_PORT = 587  # Cổng SMTP (thường là 587 cho TLS)
+EMAIL_USE_TLS = True  # Sử dụng TLS
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')  # Địa chỉ email của bạn
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')  # Mật khẩu email của bạn
+EMAIL_USE_SSL = False  # Không sử dụng SSL
+DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')  # Địa chỉ email gửi đi

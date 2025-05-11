@@ -9,7 +9,9 @@
 </head>
 <body>
     <div class="overlay"></div>
-    <form action="{% url 'login' %}" method="POST" class="login-container">
+    
+    <!-- Form đăng nhập -->
+    <form id="login-form" action="{% url 'login' %}" method="POST" class="login-container active">
         {% csrf_token %}
         <h1>Đăng nhập</h1>
         <div class="form-group">
@@ -24,7 +26,46 @@
         {% if error %}
             <p class="error">{{ error }}</p>
         {% endif %}
-        <a href="#" class="forgot-password">Quên mật khẩu?</a>
+        <a href="javascript:void(0)" onclick="switchForm('forgot-form')" class="forgot-password">Quên mật khẩu?</a>
     </form>
+
+    <!-- Form quên mật khẩu -->
+    <form id="forgot-form" action="{% url 'forgot_password' %}" method="POST" class="login-container">
+        {% csrf_token %}
+        <h1>Quên mật khẩu</h1>
+        <div class="form-group">
+            <label for="manv">Mã nhân viên</label>
+            <input type="text" name="manv" id="manv" required class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" name="email" id="email" required class="form-control">
+        </div>
+        <button type="submit" class="login-button">Gửi yêu cầu</button>
+        {% if forgot_message %}
+            <p class="{% if forgot_success %}success{% else %}error{% endif %}">{{ forgot_message }}</p>
+        {% endif %}
+        <a href="javascript:void(0)" onclick="switchForm('login-form')" class="back-link">Quay lại đăng nhập</a>
+    </form>
+    
+    <!-- Form reset password sẽ ở trang riêng vì cần token -->
+
+    <script>
+        function switchForm(formId) {
+            // Ẩn tất cả các form
+            document.getElementById('login-form').classList.remove('active');
+            document.getElementById('forgot-form').classList.remove('active');
+            
+            // Hiển thị form được chọn
+            document.getElementById(formId).classList.add('active');
+        }
+        
+        // Nếu có thông báo lỗi từ forgot_password, hiển thị form đó
+        {% if forgot_message %}
+            switchForm('forgot-form');
+        {% else %}
+            switchForm('login-form'); // Mặc định hiển thị form login
+        {% endif %}
+    </script>
 </body>
 </html>

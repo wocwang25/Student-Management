@@ -4,9 +4,10 @@ from django.shortcuts import render, redirect
 from .forms import LoginForm
 from .models import Nhanvien, Lop
 from django.contrib import messages
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.backends import default_backend
+from django.core.mail import send_mail
+from django.utils.crypto import get_random_string
+from django.urls import reverse
+from django.conf import settings
 from utils.decorators import *
 from decimal import Decimal
 
@@ -42,6 +43,8 @@ def execute_stored_procedure(proc_name, params_dict):
 # Create your views here.
 def login_view(request):
     error = ""
+    forgot_message = None
+    forgot_success = False
     if request.method == 'POST':
         form = LoginForm(request.POST)
         if form.is_valid():
@@ -84,8 +87,17 @@ def login_view(request):
                 print(f"Login error: {str(e)}")
     else:
         form = LoginForm()
+        
+    if 'forgot_message' in request.session:
+        forgot_message = request.session.pop('forgot_message')
+        forgot_success = request.session.pop('forgot_success', False)
     
-    return render(request, 'login.html', {'form': form, 'error': error})
+    return render(request, 'login.html', {
+        'form': form, 
+        'error': error if 'error' in locals() else None,
+        'forgot_message': forgot_message,
+        'forgot_success': forgot_success
+    })
     
 def home_view(request):
     context = {}
@@ -682,3 +694,94 @@ def employee_list(request):
         cursor.execute("SELECT MANV, HOTEN, EMAIL, LUONGCB FROM NHANVIEN")
         employees = cursor.fetchall()
     return render(request, 'employee_list.html', {'employees': employees})
+
+# Hàm xử lý quên mật khẩu
+def forgot_password(request):
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        try:
+            # Kiểm tra email có tồn tại trong hệ thống
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT MANV FROM NHANVIEN WHERE EMAIL=%s", [email])
+                result = cursor.fetchone()
+                if not result:
+                    messages.error(request, "Email không tồn tại trong hệ thống.")
+                    return redirect('forgot_password')
+                
+                manv = result[0]  # Lấy mã nhân viên
+                
+                # Tạo token reset mật khẩu
+                token = get_random_string(32)
+                reset_url = request.build_absolute_uri(reverse('reset_password', args=[token]))
+                
+                # Lưu token và thông tin nhân viên vào session
+                request.session['reset_token'] = token
+                request.session['reset_email'] = email
+                request.session['reset_manv'] = manv
+                
+                # Gửi email reset mật khẩu
+                send_mail(
+                    'Reset mật khẩu',
+                    f'Nhấn vào liên kết sau để đặt lại mật khẩu: {reset_url}',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [email],
+                    fail_silently=False,
+                )
+                messages.success(request, "Email đặt lại mật khẩu đã được gửi.")
+                return redirect('login')
+        except Exception as e:
+            messages.error(request, f"Lỗi: {str(e)}")
+            return redirect('forgot_password')
+    
+    return render(request, 'forgot_password.html')
+
+# Hàm xử lý đặt lại mật khẩu
+def reset_password(request, token):
+    # Kiểm tra token
+    session_token = request.session.get('reset_token')
+    email = request.session.get('reset_email')
+    manv = request.session.get('reset_manv')
+    
+    if not session_token or session_token != token or not email or not manv:
+        messages.error(request, "Token không hợp lệ hoặc đã hết hạn.")
+        return redirect('forgot_password')
+    
+    if request.method == 'POST':
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+        
+        if new_password != confirm_password:
+            messages.error(request, "Mật khẩu xác nhận không khớp.")
+            return redirect('reset_password', token=token)
+        
+        try:
+            # Sử dụng stored procedure để reset mật khẩu
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "EXEC SP_RESET_PASSWORD_NHANVIEN @MANV=%s, @EMAIL=%s, @NewPassword=%s",
+                    [manv, email, new_password]
+                )
+            
+            # Xóa dữ liệu reset khỏi session
+            for key in ['reset_token', 'reset_email', 'reset_manv']:
+                if key in request.session:
+                    del request.session[key]
+            
+            messages.success(request, "Mật khẩu đã được đặt lại thành công.")
+            return redirect('login')
+            
+        except Exception as e:
+            error_message = str(e)
+            
+            # Xử lý các loại lỗi từ stored procedure
+            if 'MANV, EMAIL hoặc NewPassword không được để trống' in error_message:
+                error_message = "Thiếu thông tin để đặt lại mật khẩu."
+            elif 'MANV hoặc EMAIL không đúng' in error_message:
+                error_message = "Thông tin nhân viên không chính xác."
+            elif 'Mật khẩu mới phải có ít nhất 8 ký tự' in error_message:
+                error_message = "Mật khẩu mới phải có ít nhất 8 ký tự."
+            
+            messages.error(request, f"Lỗi: {error_message}")
+            return redirect('reset_password', token=token)
+    
+    return render(request, 'reset_password.html', {'token': token})
