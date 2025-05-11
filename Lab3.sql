@@ -758,6 +758,69 @@ begin
 end
 go
 
+-- Reset password
+IF EXISTS (SELECT 1 FROM sys.procedures WHERE name = 'SP_RESET_PASSWORD_NHANVIEN')
+BEGIN
+    DROP PROC SP_RESET_PASSWORD_NHANVIEN
+END
+GO
+
+CREATE PROC SP_RESET_PASSWORD_NHANVIEN
+(
+    @MANV varchar(20),
+    @EMAIL varchar(20),
+    @NewPassword nvarchar(50)
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Kiểm tra đầu vào
+    IF @MANV IS NULL OR @EMAIL IS NULL OR @NewPassword IS NULL
+    BEGIN
+        RAISERROR(N'MANV, EMAIL hoặc NewPassword không được để trống', 16, 1);
+        RETURN;
+    END
+
+    -- Kiểm tra nhân viên tồn tại và email khớp
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM NHANVIEN 
+        WHERE MANV = @MANV AND EMAIL = @EMAIL
+    )
+    BEGIN
+        RAISERROR(N'MANV hoặc EMAIL không đúng', 16, 1);
+        RETURN;
+    END
+
+    -- Kiểm tra độ dài mật khẩu mới
+    IF LEN(@NewPassword) < 8
+    BEGIN
+        RAISERROR(N'Mật khẩu mới phải có ít nhất 8 ký tự', 16, 1);
+        RETURN;
+    END
+
+    -- Băm mật khẩu mới bằng SHA1
+    DECLARE @HashedPassword varbinary(max);
+    SET @HashedPassword = HASHBYTES('SHA1', @NewPassword);
+
+    -- Cập nhật mật khẩu
+    BEGIN TRY
+        UPDATE NHANVIEN
+        SET MATKHAU = @HashedPassword
+        WHERE MANV = @MANV;
+
+        -- Thông báo thành công
+        PRINT N'Mật khẩu của nhân viên ' + @MANV + N' đã được reset thành công';
+    END TRY
+    BEGIN CATCH
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        RAISERROR(N'Lỗi khi reset mật khẩu: %s', 16, 1, @ErrorMessage);
+        RETURN;
+    END CATCH
+END
+GO
+
 --exec SP_LOG_IN 'NVA', '123456'
 --HOCPHAN
 INSERT INTO DBO.HOCPHAN VALUES('MTH01', N'Phương Pháp Tính', 4);
@@ -789,6 +852,7 @@ EXEC SP_INS_PUBLIC_NHANVIEN 'NV01', N'NGUYEN VAN A', 'nva@yahoo.com', 3000000, N
 EXEC SP_INS_PUBLIC_NHANVIEN 'NV02', N'NGUYEN VAN B', 'nvb@yahoo.com', 2000000, N'NVB', '1234567'
 exec SP_INS_PUBLIC_NHANVIEN 'NV03', N'Nguyễn Văn C', 'nvc@gmail.com', 5000000, 'NVC', '123456'
 EXEC SP_INS_PUBLIC_NHANVIEN 'NV04', N'Nguyễn Văn D', 'nvd@', 3000000, 'nvd', 'abcd12'
+EXEC SP_INS_PUBLIC_NHANVIEN 'NV05', N'Bùi Lê Anh Khoa', 'blkhoa2004@gmail.com', 3000000, 'anhkhoa', '28082004'
 GO
 
 --LOP
