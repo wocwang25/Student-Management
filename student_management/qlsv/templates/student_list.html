@@ -290,11 +290,13 @@ viên{% endblock %} {% block extra_css %}
   </div>
 
   {% if messages %}
-  <div class="messages">
+  <div class="messages-container">
     {% for message in messages %} 
     {% if 'edit_student' in message.extra_tags or 'add_student' in message.extra_tags or 'remove_student' in message.extra_tags or 'student_list' in message.extra_tags %}
-    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}">
+    <div class="alert {% if 'error' in message.tags %}alert-danger{% elif 'success' in message.tags %}alert-success{% elif 'warning' in message.tags %}alert-warning{% elif 'info' in message.tags %}alert-info{% else %}alert-secondary{% endif %} alert-dismissible fade show" role="alert">
+      <strong>{% if 'error' in message.tags %}Lỗi!{% elif 'success' in message.tags %}Thành công!{% elif 'warning' in message.tags %}Cảnh báo!{% elif 'info' in message.tags %}Thông báo!{% endif %}</strong> 
       {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
     {% endif %} 
     {% endfor %}
@@ -386,10 +388,14 @@ viên{% endblock %} {% block extra_css %}
       } else {
         console.error("Modal element not found");
       }
+      var addModalElement = document.getElementById("addStudentModal");
+      if (addModalElement) {
+        var addModal = new bootstrap.Modal(addModalElement);
+      } else {
+        console.error("Add Modal element not found");
+      }
     } else {
-      console.error(
-        "Bootstrap is not defined. Make sure bootstrap.js is loaded."
-      );
+      console.error("Bootstrap is not defined. Make sure bootstrap.js is loaded.");
     }
 
     // Xử lý form thêm sinh viên
@@ -399,8 +405,11 @@ viên{% endblock %} {% block extra_css %}
         const addForm = document.getElementById("addForm");
 
         // Reset lỗi và trạng thái validate
-        document.getElementById("addFormError").style.display = "none";
-        document.getElementById("addFormError").textContent = "";
+        const addFormError = document.getElementById("addFormError");
+        if (addFormError) {
+          addFormError.style.display = "none";
+          addFormError.textContent = "";
+        }
 
         // Kiểm tra form validation
         let isValid = true;
@@ -545,6 +554,10 @@ viên{% endblock %} {% block extra_css %}
           .then((response) => response.json())
           .then((data) => {
             const modal = bootstrap.Modal.getInstance(deleteModal);
+
+            confirmDeleteBtn.disabled = false;
+            confirmDeleteBtn.innerHTML = "Xác nhận xóa";
+
             modal.hide();
 
             if (data.status === "success") {
@@ -600,6 +613,28 @@ viên{% endblock %} {% block extra_css %}
           });
       });
     }
+
+    // Xử lý thông báo tự động ẩn
+    const handleAlerts = function() {
+      const alerts = document.querySelectorAll('.alert:not(#password-error)');
+      
+      alerts.forEach(function(alert) {
+        setTimeout(function() {
+          // Fade out
+          alert.style.transition = 'opacity 0.5s';
+          alert.style.opacity = 0;
+          
+          // Xóa khỏi DOM sau khi đã fade out
+          setTimeout(function() {
+            if (alert.parentNode) {
+              alert.remove();
+            }
+          }, 500);
+        }, 5000);
+      });
+    };
+
+    handleAlerts();
 
     // Xử lý tìm kiếm sinh viên
     const studentSearchInput = document.getElementById("studentSearchInput");
@@ -678,7 +713,10 @@ viên{% endblock %} {% block extra_css %}
       })
       .then((data) => {
         if (data.status === "success") {
-          $("#editStudentModal").modal("hide");
+          var editModalInstance = bootstrap.Modal.getInstance(document.getElementById("editStudentModal"));
+          if (editModalInstance) {
+            editModalInstance.hide();
+          }
           setTimeout(() => {
             location.reload();
           }, 500);
