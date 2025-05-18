@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 {% load static %}
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,8 +9,9 @@
     <!-- Sử dụng font Cinzel để tạo cảm giác cổ điển sang trọng -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/home.css' %}">
-        <link rel="icon" href="{% static 'image/favicon.ico' %}" type="image/x-icon">
+    <link rel="icon" href="{% static 'image/favicon.ico' %}" type="image/x-icon">
 </head>
+
 <body>
     <div class="overlay"></div>
     <div class="container">
@@ -19,10 +21,12 @@
         </header>
         <div class="content">
             <a href="{% url 'login' %}" class="login-button">Đăng nhập</a>
+            <a href="{% url 'register' %}" class="login-button" style="margin-left: 10px;">Đăng ký</a>
         </div>
         <footer class="footer">
             <p>&copy; 2025 - Student Management</p>
         </footer>
     </div>
 </body>
+
 </html>

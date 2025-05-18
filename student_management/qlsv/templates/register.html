@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký - Quản lý Sinh viên</title>
+    <link rel="stylesheet" href="{% static 'css/login.css' %}">
+</head>
+
+<body>
+    <div class="overlay"></div>
+    <form action="{% url 'register' %}" method="POST" class="login-container">
+        {% csrf_token %}
+        <h1>Đăng ký tài khoản</h1>
+        <div class="form-group">
+            <label for="id_manv">Mã nhân viên</label>
+            <input type="text" name="manv" id="id_manv" required>
+        </div>
+        <div class="form-group">
+            <label for="id_hoten">Họ tên</label>
+            <input type="text" name="hoten" id="id_hoten" required>
+        </div>
+        <div class="form-group">
+            <label for="id_email">Email</label>
+            <input type="email" name="email" id="id_email" required>
+        </div>
+        <div class="form-group">
+            <label for="id_luongcb">Lương cơ bản</label>
+            <input type="number" name="luongcb" id="id_luongcb" required>
+        </div>
+        <div class="form-group">
+            <label for="id_tendn">Tên đăng nhập</label>
+            <input type="text" name="tendn" id="id_tendn" required>
+        </div>
+        <div class="form-group">
+            <label for="id_mk">Mật khẩu</label>
+            <input type="password" name="mk" id="id_mk" required>
+        </div>
+        <button type="submit" class="login-button">Đăng ký</button>
+        {% if messages %}
+        {% for message in messages %}
+        <p class="{% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</p>
+        {% endfor %}
+        {% endif %}
+        <a href="{% url 'login' %}" class="forgot-password">Đã có tài khoản? Đăng nhập</a>
+    </form>
+</body>
+
+</html>

@@ -1,17 +1,21 @@
+import os
 from django.db import connection
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from .forms import LoginForm
 from .models import Nhanvien, Lop
 from django.contrib import messages
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.backends import default_backend
 from utils.decorators import *
 from decimal import Decimal
+import hashlib
 
 import logging
 logger = logging.getLogger('django.db.backend')
+PRIVATE_KEY_DIR = os.path.join(os.path.dirname(__file__), 'private_keys')
+os.makedirs(PRIVATE_KEY_DIR, exist_ok=True)
 
 def execute_stored_procedure(proc_name, params_dict):
     logger.debug(f"EXECUTING STORED PROCEDURE: {proc_name}")
@@ -140,12 +144,23 @@ def logout_view(request):
     request.session.flush()  # Xóa toàn bộ session
     return redirect('home')
 
+def load_private_key(manv):
+    private_key_path = os.path.join(PRIVATE_KEY_DIR, f"{manv}_private.pem")
+    if os.path.exists(private_key_path):
+        with open(private_key_path, "rb") as f:
+            private_key = serialization.load_pem_private_key(
+                f.read(),
+                password=None,
+                backend=default_backend()
+            )
+        return private_key
+    return None
+
 @staff_login_required
 def view_employee_info(request):
     # Lấy thông tin nhân viên đang đăng nhập
     manv = request.session.get('manv')
     tendn = None
-    
     # Xóa tất cả thông báo cũ
     storage = messages.get_messages(request)
     for message in storage:
@@ -173,28 +188,52 @@ def view_employee_info(request):
             # Gọi stored procedure để lấy thông tin nhân viên
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "EXEC SP_SEL_PUBLIC_NHANVIEN @TENDN=%s, @MK=%s",
+                    "EXEC SP_SEL_PUBLIC_ENCRYPT_NHANVIEN @TENDN=%s, @MK=%s",
                     [tendn, password]
                 )
                 
                 # Xử lý kết quả trả về từ stored procedure
                 result = cursor.fetchone()
                 if result:
-                    employee_info = {
-                        'manv': result[0],
-                        'hoten': result[1],
-                        'email': result[2],
-                        'luongcb': result[3]
-                    }
+                    # Các trường trả về từ stored procedure:
+                    # MANV, HOTEN, EMAIL, EncryptedSalary (VARBINARY), PUBKEY (PEM)
+                    manv, hoten, email, encrypted_salary, pubkey_pem = result
+                    
+                    try:
+                        # 2. Giải mã lương từ private key file
+                        private_key = load_private_key(manv)
+                        if private_key is None:
+                            raise Exception("Không tìm thấy private key cho nhân viên này.")
+                        decrypted_salary = private_key.decrypt(
+                            encrypted_salary,
+                            padding.OAEP(
+                                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                                algorithm=hashes.SHA256(),
+                                label=None
+                            )
+                        ).decode('utf-8')
+                        
+                        employee_info = {
+                            'manv': manv,
+                            'hoten': hoten,
+                            'email': email,
+                            'luongcb': decrypted_salary
+                        }
+                        print(employee_info)
+                        
+                    except Exception as decryption_error:
+                        error_message = f"Lỗi giải mã thông tin lương: {str(decryption_error)}"
+                        print(f"Decryption error: {decryption_error}")
+                        
         except Exception as e:
             error_message = f"Lỗi khi lấy thông tin nhân viên: {str(e)}"
-            print(f"Error fetching employee info: {e}")
+            print(f"Database error: {e}")
     
-    # Render template
-    return render(request, 'employee_info.html', {
+    context = {
         'employee_info': employee_info,
         'error_message': error_message
-    })
+    }
+    return render(request, 'employee_info.html', context)
 
 @staff_login_required
 @check_class_permission
@@ -568,7 +607,6 @@ def view_student_scores(request, malop, masv):
         'error_message': error_message
     })
 
-
 @staff_login_required
 @check_class_permission
 def edit_student(request, malop, masv):
@@ -657,6 +695,53 @@ def edit_student(request, malop, masv):
         'lop': {'malop': malop, 'tenlop': tenlop}
     })
 
+def save_employee(manv, hoten, email, luongcb, tendn, mk):
+    # 1. Mã hóa mật khẩu bằng SHA1
+    hashed_mk = hashlib.sha1(mk.encode('utf-8')).digest()
+
+    # 2. Sinh cặp khóa RSA 2048
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+    public_key = private_key.public_key()
+
+    # 3. Lưu private key (dạng PEM) vào file
+    private_key_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+    with open(os.path.join(PRIVATE_KEY_DIR, f"{manv}_private.pem"), "wb") as f:
+        f.write(private_key_pem)
+
+    # 4. Mã hóa LUONGCB bằng public key
+    encrypted_luongcb = public_key.encrypt(
+        str(luongcb).encode('utf-8'),
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+
+    # 5. Lưu public key (dạng PEM)
+    public_key_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode('utf-8')
+
+    # 6. Gọi stored procedure (không truyền private key)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """EXEC SP_INS_PUBLIC_ENCRYPT_NHANVIEN
+                @MANV=%s, @HOTEN=%s, @EMAIL=%s,
+                @LUONGCB=%s, @TENDN=%s, @MK=%s,
+                @PUBKEY=%s""",
+            [manv, hoten, email, encrypted_luongcb,
+                tendn, hashed_mk, public_key_pem]
+        )
 @staff_login_required
 def add_employee(request):
     if request.method == 'POST':
@@ -666,19 +751,39 @@ def add_employee(request):
         luongcb = request.POST.get('luongcb')
         tendn = request.POST.get('tendn')
         mk = request.POST.get('mk')
-
-        # Lưu vào NHANVIEN
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "EXEC SP_INS_PUBLIC_NHANVIEN @MANV=%s, @HOTEN=%s, @EMAIL=%s, @LUONGCB=%s, @TENDN=%s, @MK=%s",
-                [manv, hoten, email, luongcb, tendn, mk]
-            )
+        save_employee(manv, hoten, email, luongcb, tendn, mk)
         return redirect('class_management')
     return render(request, 'add_nhanvien.html')
+
+def register(request):
+    if request.method == 'POST':
+        manv = request.POST.get('manv')
+        hoten = request.POST.get('hoten')
+        email = request.POST.get('email')
+        luongcb = request.POST.get('luongcb')
+        tendn = request.POST.get('tendn')
+        mk = request.POST.get('mk')
+        try:
+            save_employee(manv, hoten, email, luongcb, tendn, mk)
+            messages.success(request, "Đăng ký thành công! Vui lòng đăng nhập.")
+            return redirect('login')
+        except Exception as e:
+            messages.error(request, f"Lỗi đăng ký: {str(e)}")
+    return render(request, 'register.html')
 
 @staff_login_required
 def employee_list(request):
     with connection.cursor() as cursor:
         cursor.execute("SELECT MANV, HOTEN, EMAIL, LUONGCB FROM NHANVIEN")
         employees = cursor.fetchall()
+        
+        # employees.LUONGCB = client_private_keys[employees.MANV].private_key.decrypt(
+        #                     employees.LUONGCB,
+        #                     padding.OAEP(
+        #                         mgf=padding.MGF1(algorithm=hashes.SHA256()),
+        #                         algorithm=hashes.SHA256(),
+        #                         label=None
+        #                     )
+        #                 ).decode('utf-8')
     return render(request, 'employee_list.html', {'employees': employees})
+

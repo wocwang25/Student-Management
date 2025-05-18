@@ -27,6 +27,7 @@ urlpatterns = [
     path('', views.home_view, name = 'home'),
     path('favicon.ico', RedirectView.as_view(url=settings.STATIC_URL+'css/image/favicon.ico')),
     path('login/', views.login_view, name = 'login'),
+    path('register/', views.register, name='register'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('logout/', views.home_view, name='logout'),
     # path('dashboard/classes/', views.class_management, name='class_management'),
