@@ -787,3 +787,50 @@ def employee_list(request):
         #                 ).decode('utf-8')
     return render(request, 'employee_list.html', {'employees': employees})
 
+
+def auto_register_initial_employees():
+    employees = [
+        {
+            "manv": "NV01",
+            "hoten": "Võ Yu Loli",
+            "email": "yusato@loli.com",
+            "luongcb": 1000000,  
+            "tendn": "NVA",
+            "mk": "123456"
+        },
+        {
+            "manv": "NV02",
+            "hoten": "NGUYEN VAN B",
+            "email": "nvb@yahoo.com",
+            "luongcb": 2000000,
+            "tendn": "NVB",
+            "mk": "123456"
+        },
+        {
+            "manv": "NV03",
+            "hoten": "Nguyễn Văn C",
+            "email": "nvc@gmail.com",
+            "luongcb": 5000000,
+            "tendn": "NVC",
+            "mk": "123456"
+        }
+    ]
+    for emp in employees:
+        try:
+            save_employee(
+                emp["manv"],
+                emp["hoten"],
+                emp["email"],
+                emp["luongcb"],
+                emp["tendn"],
+                emp["mk"]
+            )
+            print(f"Đã đăng ký nhân viên {emp['manv']}")
+        except Exception as e:
+            print(f"Lỗi khi đăng ký {emp['manv']}: {e}")
+
+# Để chạy hàm này, bạn vào Django shell:
+# python manage.py shell
+# rồi chạy:
+# from qlsv.views import auto_register_initial_employees
+# auto_register_initial_employees()
