@@ -179,3 +179,7 @@ cython_debug/
 
 # VS Code settings
 .vscode/
+
+# Private files
+*.pem
+private_keys/

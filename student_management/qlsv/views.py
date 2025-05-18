@@ -9,6 +9,8 @@ from django.utils.crypto import get_random_string
 from django.urls import reverse
 from django.conf import settings
 from utils.decorators import *
+from utils.encryption import *
+from utils.key_storage import *
 from decimal import Decimal
 
 import logging
@@ -49,14 +51,15 @@ def login_view(request):
         form = LoginForm(request.POST)
         if form.is_valid():
             manv = form.cleaned_data['manv']
-            password = form.cleaned_data['password']
+            password = form.cleaned_data['password']           
+            hashed_password = hashing_password(password)
             
             try:
                 # Gọi SP_LOG_IN
                 with connection.cursor() as cursor:
                     cursor.execute(
                         "EXEC SP_LOG_IN @MANV=%s, @MATKHAU=%s",
-                        [manv, password]
+                        [manv, hashed_password]
                     )
                     result = cursor.fetchone()
                     
@@ -70,11 +73,14 @@ def login_view(request):
                         request.session['hoten'] = hoten
                         request.session['email'] = email
                         
+                        # Get public key if available
                         try:
-                            nv = Nhanvien.objects.get(manv=manv)
-                            request.session['pubkey'] = nv.pubkey
-                        except Nhanvien.DoesNotExist:
-                            # Xử lý nếu không có trong model Django
+                            with connection.cursor() as cursor2:
+                                cursor2.execute("SELECT PUBKEY FROM NHANVIEN WHERE MANV=%s", [manv])
+                                pubkey_result = cursor2.fetchone()
+                                if pubkey_result:
+                                    request.session['pubkey'] = pubkey_result[0]
+                        except:
                             pass
                         
                         # Lưu mật khẩu tạm thời để giải mã điểm (nếu cần)
@@ -109,8 +115,6 @@ def home_view(request):
 
 @staff_login_required
 def dashboard(request):
-    # if 'manv' not in request.session:
-    #     return redirect('login')
     manv = request.session.get('manv')
     if not manv:
         return redirect('login')
@@ -182,22 +186,56 @@ def view_employee_info(request):
         password = request.POST.get('password')
         
         try:
+            hashed_password = hashing_password(password)
+            
             # Gọi stored procedure để lấy thông tin nhân viên
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "EXEC SP_SEL_PUBLIC_NHANVIEN @TENDN=%s, @MK=%s",
-                    [tendn, password]
+                    "EXEC SP_SEL_PUBLIC_ENCRYPT_NHANVIEN @TENDN=%s, @MK=%s",
+                    [tendn, hashed_password]
                 )
                 
                 # Xử lý kết quả trả về từ stored procedure
                 result = cursor.fetchone()
-                if result:
-                    employee_info = {
-                        'manv': result[0],
-                        'hoten': result[1],
-                        'email': result[2],
-                        'luongcb': result[3]
-                    }
+                if not result:
+                    error_message = "Không tìm thấy thông tin nhân viên hoặc mật khẩu không đúng"
+                    return render(request, 'employee_info.html', {
+                        'employee_info': None,
+                        'error_message': error_message
+                    })
+                manv_res = result[0]
+                hoten = result[1]
+                email = result[2]
+                encrypted_salary = result[3]
+                
+                pubkey = None
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT PUBKEY FROM NHANVIEN WHERE MANV=%s", [manv_res])
+                    pubkey_result = cursor.fetchone()
+                    if pubkey_result:
+                        pubkey = pubkey_result[0]
+                
+                # Giải mã lương
+                try:
+                    # Lấy private key từ thư mục local
+                    private_key_pem = get_private_key(manv_res)
+                    
+                    if not private_key_pem:
+                        decrypted_salary = "Không tìm thấy private key cho nhân viên này"
+                    else:
+                        # Giải mã lương với private key từ local storage
+                        decrypted_salary = decrypt_salary(encrypted_salary, private_key_pem, password)
+                except Exception as e:
+                    print(f"Lỗi giải mã: {str(e)}")
+                    decrypted_salary = f"Không thể giải mã lương: {str(e)}"
+                
+                employee_info = {
+                    'manv': manv_res,
+                    'hoten': hoten,
+                    'email': email,
+                    'luongcb': decrypted_salary
+                }
+                
         except Exception as e:
             error_message = f"Lỗi khi lấy thông tin nhân viên: {str(e)}"
             print(f"Error fetching employee info: {e}")
@@ -303,11 +341,12 @@ def add_student(request, malop):
                 })
         
         try:
+            hashed_password = hashing_password(mk)
             # Gọi stored procedure để thêm sinh viên
             with connection.cursor() as cursor:
                 cursor.execute(
                     "EXEC SP_INS_SINHVIEN @MASV=%s, @HOTEN=%s, @NGAYSINH=%s, @DIACHI=%s, @MALOP=%s, @TENDN=%s, @MATKHAU=%s",
-                    [masv, hoten, ngaysinh, diachi, malop, tendn, mk]
+                    [masv, hoten, ngaysinh, diachi, malop, tendn, hashed_password]
                 )
             
             success_message = f"Đã thêm sinh viên {hoten} vào lớp {tenlop}"
@@ -482,11 +521,54 @@ def input_score(request, malop, masv):
                 })
                 
             try:
-                diemthi = Decimal(diemthi)
-                if not (0 <= diemthi <= 10):
+                score = Decimal(diemthi)
+                if not (0 <= score <= 10):
                     raise ValueError("Điểm phải nằm trong khoảng 0-10")
             except ValueError as e:
                 messages.error(request, f"Điểm không hợp lệ: {str(e)}")
+                return render(request, 'input_score.html', {
+                    'masv': masv, 
+                    'malop': malop,
+                    'student_name': student_name,
+                    'subjects': subjects
+                })
+                
+            # Get employee's pubkey
+            pubkey = request.session.get('pubkey')
+            
+            if not pubkey:
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute("SELECT PUBKEY FROM NHANVIEN WHERE MANV=%s", [manv])
+                        pubkey_result = cursor.fetchone()
+                        if pubkey_result and pubkey_result[0]:
+                            pubkey = pubkey_result[0]
+                            # Lưu vào session để sử dụng sau này
+                            request.session['pubkey'] = pubkey
+                except Exception as e:
+                    messages.error(request, f"Không thể lấy khóa công khai của nhân viên: {str(e)}")
+                    return render(request, 'input_score.html', {
+                        'masv': masv, 
+                        'malop': malop,
+                        'student_name': student_name,
+                        'subjects': subjects
+                    })
+                    
+            encrypted_score = None
+            if pubkey:
+                try:
+                    # Sử dụng hàm mới giống với SQL Server
+                    encrypted_score = encrypt_score(diemthi, pubkey)
+                except Exception as e:
+                    messages.error(request, f"Lỗi mã hóa điểm: {str(e)}")
+                    return render(request, 'input_score.html', {
+                        'masv': masv, 
+                        'malop': malop,
+                        'student_name': student_name,
+                        'subjects': subjects
+                    })
+            else:
+                messages.error(request, "Không tìm thấy khóa công khai của nhân viên để mã hóa điểm.")
                 return render(request, 'input_score.html', {
                     'masv': masv, 
                     'malop': malop,
@@ -498,7 +580,7 @@ def input_score(request, malop, masv):
             with connection.cursor() as cursor:
                 cursor.execute(
                     "EXEC SP_UPD_BANGDIEM @MANV=%s, @MASV=%s, @MAHP=%s, @DIEMTHI=%s",
-                    [manv, masv, mahp, diemthi]
+                    [manv, masv, mahp, encrypted_score]
                 )
             
             # Tìm tên môn học để hiển thị thông báo
@@ -595,20 +677,21 @@ def edit_student(request, malop, masv):
         hoten = request.POST.get('hoten')
         ngaysinh = request.POST.get('ngaysinh')
         diachi = request.POST.get('diachi')
-        
         tendn = request.POST.get('tendn', '')
         mk = request.POST.get('mk', '')
         
         # Xử lý trường hợp mật khẩu trống
         if not mk:
-            mk = None
+            hashed_password = None
+        else:
+            hashed_password = hashing_password(mk)
             
         try:
             # Gọi stored procedure để cập nhật sinh viên
             with connection.cursor() as cursor:
                 cursor.execute(
                     "EXEC SP_UPD_SINHVIEN @MANV=%s, @MASV=%s, @HOTEN=%s, @NGAYSINH=%s, @DIACHI=%s, @MALOP=%s, @TENDN=%s, @MATKHAU=%s",
-                    [manv, masv, hoten, ngaysinh, diachi, malop, tendn, mk]
+                    [manv, masv, hoten, ngaysinh, diachi, malop, tendn, hashed_password]
                 )
             
             messages.success(request, f"Đã cập nhật thông tin sinh viên {hoten} thành công!", extra_tags='edit_student')
@@ -679,19 +762,53 @@ def add_employee(request):
         tendn = request.POST.get('tendn')
         mk = request.POST.get('mk')
 
-        # Lưu vào NHANVIEN
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "EXEC SP_INS_PUBLIC_NHANVIEN @MANV=%s, @HOTEN=%s, @EMAIL=%s, @LUONGCB=%s, @TENDN=%s, @MK=%s",
-                [manv, hoten, email, luongcb, tendn, mk]
-            )
-        return redirect('class_management')
+        try:
+            # Generate RSA key pair for the employee
+            private_key, public_key, public_key_pem = generate_key_pair()
+            
+            # Hash the password
+            hashed_password = hashing_password(mk)
+            
+            # Encrypt the salary using the public key
+            encrypted_salary = encrypt_salary(luongcb, public_key_pem)
+            
+            # Save employee information including the public key
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "EXEC SP_INS_PUBLIC_NHANVIEN @MANV=%s, @HOTEN=%s, @EMAIL=%s, @LUONGCB=%s, @TENDN=%s, @MK=%s, @PUBKEY=%s",
+                    [manv, hoten, email, encrypted_salary, tendn, hashed_password, public_key_pem]
+                )
+            
+            # Save private key locally
+            private_key_pem = private_key.export_key().decode('utf-8')
+            save_result = save_private_key(manv, private_key_pem)
+            
+            if save_result:
+                messages.success(request, f"Nhân viên {hoten} đã được thêm thành công. Khóa bí mật được lưu cục bộ.")
+            else:
+                messages.warning(request, f"Nhân viên {hoten} đã được thêm nhưng không thể lưu khóa bí mật.")
+            
+            return redirect('employee_list')
+            
+        except Exception as e:
+            messages.error(request, f"Lỗi khi thêm nhân viên: {str(e)}")
+            # Return to form with entered data
+            return render(request, 'add_nhanvien.html', {
+                'form_data': {
+                    'manv': manv,
+                    'hoten': hoten,
+                    'email': email,
+                    'luongcb': luongcb,
+                    'tendn': tendn
+                }
+            })
+            
     return render(request, 'add_nhanvien.html')
 
 @staff_login_required
 def employee_list(request):
     with connection.cursor() as cursor:
-        cursor.execute("SELECT MANV, HOTEN, EMAIL, LUONGCB FROM NHANVIEN")
+        cursor.execute("SELECT MANV, HOTEN, EMAIL FROM NHANVIEN")
         employees = cursor.fetchall()
     return render(request, 'employee_list.html', {'employees': employees})
 
@@ -755,11 +872,12 @@ def reset_password(request, token):
             return redirect('reset_password', token=token)
         
         try:
+            hashed_password = hashing_password(new_password)
             # Sử dụng stored procedure để reset mật khẩu
             with connection.cursor() as cursor:
                 cursor.execute(
                     "EXEC SP_RESET_PASSWORD_NHANVIEN @MANV=%s, @EMAIL=%s, @NewPassword=%s",
-                    [manv, email, new_password]
+                    [manv, email, hashed_password]
                 )
             
             # Xóa dữ liệu reset khỏi session

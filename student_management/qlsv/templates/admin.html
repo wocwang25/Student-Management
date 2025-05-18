@@ -1,0 +1,25 @@
+{% extends "qlsv/base.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+  body:not(.login) #header {
+    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+    color: white;
+  }
+</style>
+<link rel="stylesheet" type="text/css" href="{% static 'css/custom_admin.css' %}" />
+{% endblock %}
+
+{% block branding %}
+{% if user.is_authenticated %}
+<h1 id="site-name">
+    Hệ thống quản lý sinh viên
+</h1>
+{% else %}
+<h1 id="site-name">
+    {{ block.super }}
+</h1>
+{% endif %}
+{% endblock %}

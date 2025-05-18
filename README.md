@@ -80,3 +80,10 @@ cd student_management
    - **Xác thực và Phân quyền**: Các trang quản lý được bảo vệ bằng các decorator kiểm tra đăng nhập (staff) và phân quyền truy cập, đảm bảo chỉ những nhân viên có đủ quyền mới có thể thao tác trên dữ liệu.
 
 ---
+
+# Tạo tài khoản admin Django  
+Sử dụng lệnh createsuperuser  
+1. Mở terminal hoặc command prompt
+2. Di chuyển đến thư mục dự án của bạn (thư mục chứa file manage.py)
+3. Chạy lệnh sau: `python manage.py createsuperuser`
+4. Làm theo các hướng dẫn để tạo một tài khoản admin mới với username và email khác

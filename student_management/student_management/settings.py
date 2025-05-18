@@ -37,6 +37,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'qlsv',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -152,3 +153,78 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')  # Địa chỉ email của bạn
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')  # Mật khẩu email của bạn
 EMAIL_USE_SSL = False  # Không sử dụng SSL
 DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')  # Địa chỉ email gửi đi
+
+# Jazzmin settings
+JAZZMIN_SETTINGS = {
+    # Logo để hiển thị trong sidebar
+    "site_logo": None,
+
+    # Tên trang admin
+    "site_title": "Quản lý Sinh viên Admin",
+    "site_header": "Quản lý Sinh viên",
+    "site_brand": "HCMUS DBSecurity",
+
+    # CSS để tùy chỉnh màu sắc
+    "welcome_sign": "Chào mừng đến với hệ thống quản lý",
+    "copyright": "HCMUS - Bảo mật CSDL",
+    
+    # Theme và màu sắc
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
+    
+    # Tùy chọn UI
+    "show_ui_builder": True,
+    
+    # Tùy chỉnh menu
+    "icons": {
+        "qlsv.Nhanvien": "fas fa-user-tie",
+        "qlsv.Sinhvien": "fas fa-user-graduate", 
+        "qlsv.Lop": "fas fa-chalkboard-teacher",
+        "qlsv.Hocphan": "fas fa-book",
+        "qlsv.Bangdiem": "fas fa-clipboard-list",
+    },
+    
+    # Custom links
+    "custom_links": {
+        "qlsv": [{
+            "name": "Trở về Website", 
+            "url": "/",
+            "icon": "fas fa-home",
+        }],
+    }
+}
+
+JAZZMIN_SETTINGS.update({
+    "login_logo": None,
+    "show_sidebar": True,
+    "login_logo_dark": None,
+})
+
+# Tùy chỉnh các hành động cho admin
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-indigo",
+    "accent": "accent-primary",
+    "navbar": "navbar-dark",
+    "no_navbar_border": True,
+    "sidebar": "sidebar-dark-navy",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": True,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "theme": "default",
+    "dark_mode_theme": "solar",
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    }
+}

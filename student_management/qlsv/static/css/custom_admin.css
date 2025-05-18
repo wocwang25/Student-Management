@@ -1,0 +1,62 @@
+body:not(.login) #header {
+    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+    color: white;
+}
+
+body:not(.login) #header a:link, 
+body:not(.login) #header a:visited {
+    color: white;
+}
+
+body:not(.login) .module h2, 
+body:not(.login) .module caption, 
+body:not(.login) .inline-group h2 {
+    background: #4e73df;
+}
+
+body:not(.login) div.breadcrumbs {
+    background: #224abe;
+}
+
+body:not(.login) .button, 
+body:not(.login) input[type=submit], 
+body:not(.login) input[type=button], 
+body:not(.login) .submit-row input, 
+body:not(.login) a.button {
+    background: #4e73df;
+}
+
+body:not(.login) .button:hover, 
+body:not(.login) input[type=submit]:hover, 
+body:not(.login) input[type=button]:hover {
+    background: #224abe;
+}
+
+body:not(.login) .button.default, 
+body:not(.login) input[type=submit].default, 
+body:not(.login) .submit-row input.default {
+    background: #2ea745;
+}
+
+body:not(.login) .button.default:hover, 
+body:not(.login) input[type=submit].default:hover {
+    background: #1e9535;
+}
+
+body:not(.login) fieldset.collapsed .collapse-toggle {
+    color: #4e73df;
+}
+
+body:not(.login) a:link, 
+body:not(.login) a:visited {
+    color: #4e73df;
+}
+
+body:not(.login) .object-tools a:link, 
+body:not(.login) .object-tools a:visited {
+    background: #4e73df;
+}
+
+body:not(.login) .object-tools a:hover {
+    background: #224abe;
+}
