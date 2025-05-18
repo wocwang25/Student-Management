@@ -70,11 +70,13 @@ def decrypt_salary(encrypted_salary, private_key_pem, password):
         The decrypted salary as a string
     """
     try:
-        # Bước 1: Giải mã private key bằng password
+        # Deserialize the private key using the password
         private_key = deserialize_private_key(private_key_pem, password)
         
-        # Bước 2: Sử dụng private key đã giải mã để giải mã lương
+        # Create cipher with OAEP padding using SHA-256
         cipher = PKCS1_OAEP.new(private_key, hashAlgo=SHA256)
+        
+        # Decrypt the salary
         decrypted_data = cipher.decrypt(encrypted_salary)
         
         # Return as string
@@ -147,16 +149,9 @@ def decrypt_score(encrypted_score, private_key_pem, password):
         
     Returns:
         The decrypted score as a Decimal
-    """
-    # Load the private key
-    if isinstance(private_key_pem, str):
-        private_key_pem = private_key_pem.encode('utf-8')
-    
-    if isinstance(password, str):
-        password = password.encode('utf-8')
-        
+    """        
     try:
-        private_key = RSA.import_key(private_key_pem, passphrase=password)
+        private_key = deserialize_private_key(private_key_pem, password)
         
         # Create cipher with OAEP padding using SHA-256
         cipher = PKCS1_OAEP.new(private_key, hashAlgo=SHA256)

@@ -17,6 +17,8 @@ class Bangdiem(models.Model):
         managed = False
         db_table = 'BANGDIEM'
         unique_together = (('masv', 'mahp'),)
+        verbose_name = "Bảng điểm"
+        verbose_name_plural = "Bảng điểm"
 
 
 class Hocphan(models.Model):
@@ -27,6 +29,8 @@ class Hocphan(models.Model):
     class Meta:
         managed = False
         db_table = 'HOCPHAN'
+        verbose_name = "Học phần"
+        verbose_name_plural = "Học phần"
 
 
 class Lop(models.Model):
@@ -37,6 +41,8 @@ class Lop(models.Model):
     class Meta:
         managed = False
         db_table = 'LOP'
+        verbose_name = "Lớp học"
+        verbose_name_plural = "Lớp học"
     
     def count(self):
         return self.sinhvien_set.count()
@@ -54,6 +60,8 @@ class Nhanvien(models.Model):
     class Meta:
         managed = False
         db_table = 'NHANVIEN'
+        verbose_name = "Nhân viên"
+        verbose_name_plural = "Nhân viên"
 
 
 class Sinhvien(models.Model):
@@ -68,6 +76,8 @@ class Sinhvien(models.Model):
     class Meta:
         managed = False
         db_table = 'SINHVIEN'
+        verbose_name = "Sinh viên"
+        verbose_name_plural = "Sinh viên"
 
 
 class Sysdiagrams(models.Model):

@@ -553,11 +553,11 @@ def input_score(request, malop, masv):
                         'student_name': student_name,
                         'subjects': subjects
                     })
-                    
+
+            # Mã hóa điểm thi
             encrypted_score = None
             if pubkey:
                 try:
-                    # Sử dụng hàm mới giống với SQL Server
                     encrypted_score = encrypt_score(diemthi, pubkey)
                 except Exception as e:
                     messages.error(request, f"Lỗi mã hóa điểm: {str(e)}")
@@ -624,21 +624,32 @@ def view_student_scores(request, malop, masv):
             # Gọi stored procedure để xem điểm đã giải mã
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "EXEC SP_SEL_BANGDIEM @MANV=%s, @MATKHAU=%s, @MASV=%s",
-                    [manv, password, masv]
+                    "EXEC SP_SEL_BANGDIEM @MANV=%s, @MASV=%s",
+                    [manv, masv]
                 )
                 
-                # Xử lý kết quả trả về từ stored procedure
+                # Lấy kết quả trả về từ stored procedure
                 rows = cursor.fetchall()
-                scores = [
-                    {
-                        'mahp': row[0], 
-                        'tenhp': row[1], 
-                        'sotc': row[2], 
-                        'diemthi': row[3] if row[3] is not None else None
-                    } 
-                    for row in rows
-                ]
+                
+                # Get private key from local storage
+                private_key_pem = get_private_key(manv)
+                
+                if not private_key_pem:
+                    raise ValueError("Không tìm thấy private key cho nhân viên này")
+                
+                # Giải mã điểm thi
+                scores = []
+                for row in rows:
+                    try:
+                        diemthi = decrypt_score(row[3], private_key_pem, password) if row[3] else "Chưa có điểm"
+                    except Exception as e:
+                        diemthi = "Không thể giải mã điểm: " + str(e)
+                    scores.append({
+                        'mahp': row[0],
+                        'tenhp': row[1],
+                        'sotc': row[2],
+                        'diemthi': diemthi,
+                    })
         except Exception as e:
             error_message = f"Lỗi khi lấy điểm: {str(e)}"
             print(f"Error fetching scores: {e}")

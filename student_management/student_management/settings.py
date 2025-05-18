@@ -38,7 +38,7 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     'jazzmin',
-    'qlsv',
+    'qlsv.apps.QlsvConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -161,7 +161,7 @@ JAZZMIN_SETTINGS = {
 
     # Tên trang admin
     "site_title": "Quản lý Sinh viên Admin",
-    "site_header": "Quản lý Sinh viên",
+    "site_header": "Quản lý sinh viên",
     "site_brand": "HCMUS DBSecurity",
 
     # CSS để tùy chỉnh màu sắc
@@ -174,6 +174,15 @@ JAZZMIN_SETTINGS = {
     
     # Tùy chọn UI
     "show_ui_builder": True,
+    
+    # Tùy chỉnh tên hiển thị của các model
+    "labels": {
+        "qlsv.nhanvien": "Nhân viên",
+        "qlsv.sinhvien": "Sinh viên", 
+        "qlsv.lop": "Lớp học",
+        "qlsv.hocphan": "Học phần",
+        "qlsv.bangdiem": "Bảng điểm",
+    },
     
     # Tùy chỉnh menu
     "icons": {
@@ -228,3 +237,9 @@ JAZZMIN_UI_TWEAKS = {
         "success": "btn-success"
     }
 }
+
+JAZZMIN_UI_TWEAKS.update({
+    "related_modal_active": True,
+    "related_modal_bg": "primary",
+    "list_per_page": 25,
+})
