@@ -29,7 +29,7 @@ class NhanvienForm(ModelForm):
     
     class Meta:
         model = Nhanvien
-        fields = ['manv', 'hoten', 'email', 'luongcb', 'tendn', 'password']
+        fields = ['manv', 'hoten', 'email', 'luongcb', 'tendn', 'password','pubkey']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -59,8 +59,35 @@ class NhanvienAdmin(admin.ModelAdmin):
         return ['manv', 'hoten', 'email', 'luongcb', 'tendn', 'password']
     
     def save_model(self, request, obj, form, change):
-        if change:  # Nếu là cập nhật nhân viên cũ
-            super().save_model(request, obj, form, change)
+        if change:
+            try:
+                manv = obj.manv
+                hoten = obj.hoten
+                email = obj.email
+                tendn = obj.tendn
+                luongcb = form.cleaned_data.get('luongcb')
+                password = form.cleaned_data.get('password')
+                public_key_pem = obj.pubkey
+                print(public_key_pem)  
+
+                # Hash lại mật khẩu nếu có thay đổi
+                hashed_password = obj.matkhau
+                if password:
+                    hashed_password = hashing_password(password)
+
+                # Mã hóa lại lương nếu có thay đổi
+                encrypted_salary = obj.luong
+                if luongcb:
+                    encrypted_salary = encrypt_salary(luongcb, public_key_pem)
+
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "EXEC SP_UPDATE_PUBLIC_ENCRYPT_NHANVIEN @MANV=%s, @HOTEN=%s, @EMAIL=%s, @LUONGCB=%s, @TENDN=%s, @MK=%s, @PUBKEY=%s",
+                        [manv, hoten, email, encrypted_salary, tendn, hashed_password, public_key_pem]
+                    )
+                self.message_user(request, f"Cập nhật thông tin nhân viên {obj.hoten} thành công.", level='success')
+            except Exception as e:
+                self.message_user(request, f"Lỗi khi cập nhật nhân viên: {str(e)}", level='error')
             return
             
         # Xử lý thêm nhân viên mới
@@ -98,7 +125,7 @@ class NhanvienAdmin(admin.ModelAdmin):
                         "EXEC SP_INS_PUBLIC_ENCRYPT_NHANVIEN @MANV=%s, @HOTEN=%s, @EMAIL=%s, @LUONGCB=%s, @TENDN=%s, @MK=%s, @PUBKEY=%s",
                         [manv, hoten, email, encrypted_salary, tendn, hashed_password, public_key_pem]
                     )
-                
+                print(public_key_pem)
                 # Lưu private key ĐÃ ĐƯỢC BẢO VỆ
                 save_result = save_private_key(manv, protected_private_key)
                 
