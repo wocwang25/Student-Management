@@ -60,8 +60,46 @@ class NhanvienAdmin(admin.ModelAdmin):
     
     def save_model(self, request, obj, form, change):
         if change:  # Nếu là cập nhật nhân viên cũ
-            super().save_model(request, obj, form, change)
-            return
+            try:
+                # Lấy dữ liệu từ form
+                manv = obj.manv
+                luongcb = form.cleaned_data.get('luongcb')
+                password = form.cleaned_data.get('password')
+                
+                temp_luongcb = luongcb
+                form.cleaned_data['luongcb'] = None
+                super().save_model(request, obj, form, change)
+                form.cleaned_data['luongcb'] = temp_luongcb
+                
+                # Sau đó, nếu có cập nhật lương, xử lý riêng
+                if luongcb is not None:
+                    # Lấy public key từ database
+                    with connection.cursor() as cursor:
+                        cursor.execute("SELECT PUBKEY FROM NHANVIEN WHERE MANV=%s", [manv])
+                        result = cursor.fetchone()
+                        
+                    if result and result[0]:
+                        pubkey = result[0]
+                        
+                        # Mã hóa lương mới
+                        encrypted_salary = encrypt_salary(luongcb, pubkey)
+                        
+                        # Cập nhật lương đã mã hóa vào database
+                        with connection.cursor() as cursor:
+                            cursor.execute(
+                                "UPDATE NHANVIEN SET LUONG=%s WHERE MANV=%s",
+                                [encrypted_salary, manv]
+                            )
+                        
+                        self.message_user(request, f"Lương của nhân viên đã được mã hóa và cập nhật thành công", level='success')
+                    else:
+                        self.message_user(request, "Không tìm thấy khóa công khai để mã hóa lương", level='error')
+                    
+                return
+                    
+            except Exception as e:
+                self.message_user(request, f"Lỗi khi cập nhật nhân viên: {str(e)}", level='error')
+                return
             
         # Xử lý thêm nhân viên mới
         if not change:

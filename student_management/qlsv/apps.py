@@ -10,7 +10,6 @@ class QlsvConfig(AppConfig):
         
     def customize_models(self):
         """Tùy chỉnh trực tiếp tên model và trường"""
-        # Import ở đây để tránh lỗi import cycle
         from django.apps import apps
         
         try:
@@ -31,14 +30,14 @@ class QlsvConfig(AppConfig):
                         model._meta.get_field('manv').verbose_name = "Mã nhân viên"
                         model._meta.get_field('hoten').verbose_name = "Họ tên"
                         model._meta.get_field('email').verbose_name = "Email"
-                        model._meta.get_field('luongcb').verbose_name = "Lương cơ bản"
+                        model._meta.get_field('luong').verbose_name = "Lương cơ bản"
                         model._meta.get_field('tendn').verbose_name = "Tên đăng nhập"
                         
                         # Kiểm tra nếu field pubkey tồn tại
                         try:
                             model._meta.get_field('pubkey').verbose_name = "Khóa công khai"
                         except Exception:
-                            pass  # Bỏ qua nếu không tìm thấy field
+                            pass
                     except Exception as e:
                         print(f"Lỗi khi cấu hình trường cho Nhanvien: {e}")
                 
