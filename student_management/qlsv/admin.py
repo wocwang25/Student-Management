@@ -29,7 +29,7 @@ class NhanvienForm(ModelForm):
     
     class Meta:
         model = Nhanvien
-        fields = ['manv', 'hoten', 'email', 'luongcb', 'tendn', 'password']
+        fields = ['manv', 'hoten', 'email', 'luongcb', 'tendn', 'password','pubkey']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -136,7 +136,7 @@ class NhanvienAdmin(admin.ModelAdmin):
                         "EXEC SP_INS_PUBLIC_ENCRYPT_NHANVIEN @MANV=%s, @HOTEN=%s, @EMAIL=%s, @LUONGCB=%s, @TENDN=%s, @MK=%s, @PUBKEY=%s",
                         [manv, hoten, email, encrypted_salary, tendn, hashed_password, public_key_pem]
                     )
-                
+                print(public_key_pem)
                 # Lưu private key ĐÃ ĐƯỢC BẢO VỆ
                 save_result = save_private_key(manv, protected_private_key)
                 
