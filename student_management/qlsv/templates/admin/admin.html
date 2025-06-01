@@ -8,8 +8,131 @@
     background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
     color: white;
   }
+  
+  .alert-dismissible {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .alert-dismissible .timer-badge {
+    position: absolute;
+    right: 30px;
+    top: 10px;
+    background: rgba(255,255,255,0.3);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 12px;
+  }
+  
+  .alert-dismissible .timer-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgba(255,255,255,0.7);
+  }
 </style>
-<link rel="stylesheet" type="text/css" href="{% static 'css/custom_admin.css' %}" />
+
+<script>
+  // Đợi một chút để đảm bảo Jazzmin đã tải xong
+  setTimeout(function() {
+    // Tìm tất cả thông báo Jazzmin
+    function setupAlerts() {
+      const alerts = document.querySelectorAll('.alert-dismissible');
+      
+      alerts.forEach(function(alert) {
+        // Bỏ qua nếu đã xử lý
+        if (alert.getAttribute('data-auto-dismiss')) return;
+        alert.setAttribute('data-auto-dismiss', 'true');
+        
+        // Thêm badge đếm ngược
+        const timerBadge = document.createElement('span');
+        timerBadge.className = 'timer-badge';
+        timerBadge.textContent = '5s';
+        alert.appendChild(timerBadge);
+        
+        // Thêm thanh tiến trình
+        const progressBar = document.createElement('div');
+        progressBar.className = 'timer-progress';
+        progressBar.style.width = '100%';
+        alert.appendChild(progressBar);
+        
+        // Bắt đầu đếm ngược 5 giây
+        let timeLeft = 5000;
+        const closeBtn = alert.querySelector('.close');
+        
+        const timer = setInterval(function() {
+          timeLeft -= 50;
+          const secondsLeft = Math.ceil(timeLeft / 1000);
+          
+          // Cập nhật hiển thị
+          timerBadge.textContent = secondsLeft + 's';
+          progressBar.style.width = (timeLeft / 5000 * 100) + '%';
+          
+          // Đóng khi hết giờ
+          if (timeLeft <= 0) {
+            clearInterval(timer);
+            if (closeBtn) {
+              closeBtn.click();
+            } else {
+              alert.style.display = 'none';
+            }
+          }
+        }, 50);
+        
+        // Tạm dừng khi di chuột qua
+        alert.addEventListener('mouseenter', function() {
+          clearInterval(timer);
+          timerBadge.textContent = 'Dừng';
+        });
+        
+        // Tiếp tục khi di chuột ra
+        alert.addEventListener('mouseleave', function() {
+          const remainingTime = parseInt(timerBadge.textContent) * 1000;
+          if (!isNaN(remainingTime)) {
+            timeLeft = remainingTime;
+          }
+          
+          const newTimer = setInterval(function() {
+            timeLeft -= 50;
+            const secondsLeft = Math.ceil(timeLeft / 1000);
+            
+            timerBadge.textContent = secondsLeft + 's';
+            progressBar.style.width = (timeLeft / 5000 * 100) + '%';
+            
+            if (timeLeft <= 0) {
+              clearInterval(newTimer);
+              if (closeBtn) {
+                closeBtn.click();
+              } else {
+                alert.style.display = 'none';
+              }
+            }
+          }, 50);
+        });
+      });
+    }
+    
+    // Chạy ngay khi tải xong
+    setupAlerts();
+    
+    // Kiểm tra định kỳ thông báo mới
+    setInterval(setupAlerts, 500);
+    
+    // Cũng theo dõi thay đổi trong DOM
+    if (window.MutationObserver) {
+      const observer = new MutationObserver(function() {
+        setupAlerts();
+      });
+      
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    }
+  }, 1000);  // Đợi 1 giây
+</script>
 {% endblock %}
 
 {% block branding %}

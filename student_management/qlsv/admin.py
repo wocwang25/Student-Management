@@ -14,6 +14,13 @@ from decimal import Decimal
 import csv
 import io
 
+class AdminMediaMixin:
+    class Media:
+        css = {
+            'all': ('css/auto_dismiss.css',)
+        }
+        js = ('js/auto_dismiss_alerts.js',)
+
 # Form upload cho file CSV
 class CsvImportForm(forms.Form):
     csv_file = FileField(label="Chọn file CSV")
@@ -38,7 +45,7 @@ class NhanvienForm(ModelForm):
             self.fields['password'].required = False
 
 # Custom ModelAdmin for Nhanvien
-class NhanvienAdmin(admin.ModelAdmin):
+class NhanvienAdmin(AdminMediaMixin, admin.ModelAdmin):
     form = NhanvienForm
     list_display = ('manv', 'hoten', 'email', 'is_admin_user')
     search_fields = ('manv', 'hoten', 'email',)
@@ -287,7 +294,7 @@ class LopAdmin(admin.ModelAdmin):
     get_tenlop.short_description = 'Tên lớp'
 
 # Fix for SinhvienAdmin - using correct field names
-class SinhvienAdmin(admin.ModelAdmin):
+class SinhvienAdmin(AdminMediaMixin, admin.ModelAdmin):
     # Adjust field names to match your model
     list_display = ('masv', 'hoten', 'malop', 'ngaysinh', 'diachi')
     list_filter = ('malop',)
