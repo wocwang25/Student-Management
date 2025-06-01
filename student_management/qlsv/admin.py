@@ -17,7 +17,7 @@ import io
 class AdminMediaMixin:
     class Media:
         css = {
-            'all': ('css/auto_dismiss.css',)
+            'all': ('css/custom_admin.css',)
         }
         js = ('js/auto_dismiss_alerts.js',)
 

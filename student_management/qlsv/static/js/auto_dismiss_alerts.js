@@ -12,6 +12,7 @@
     
     // Theo dõi các alerts đã được xử lý
     const processedAlerts = new WeakSet();
+    let observer = null;
     
     function createCountdownElements() {
         const countdownSpan = document.createElement('span');
@@ -78,6 +79,12 @@
             const secondsLeft = Math.max(0, Math.ceil(timeLeft / 1000));
             countdownSpan.textContent = secondsLeft + 's';
             
+            // Thêm class urgent khi còn 2 giây
+            if (timeLeft <= 2000) {
+                countdownSpan.classList.add('urgent');
+                progressBar.classList.add('urgent');
+            }
+            
             // Kiểm tra hết thời gian
             if (timeLeft <= 0) {
                 clearInterval(timer);
@@ -114,12 +121,14 @@
         alert.addEventListener('mouseenter', function() {
             isPaused = true;
             alert.classList.add('paused');
-            countdownSpan.textContent = '⏸️';
+            countdownSpan.classList.add('paused');
+            countdownSpan.textContent = 'Tạm dừng';
         });
         
         alert.addEventListener('mouseleave', function() {
             isPaused = false;
             alert.classList.remove('paused');
+            countdownSpan.classList.remove('paused');
         });
         
         // Cleanup khi alert bị đóng thủ công
@@ -167,60 +176,98 @@
         });
     }
     
+    function setupMutationObserver() {
+        // Kiểm tra document.body có tồn tại không
+        if (!document.body) {
+            console.log("Document body not ready, will retry...");
+            setTimeout(setupMutationObserver, 100);
+            return;
+        }
+        
+        // Hủy observer cũ nếu có
+        if (observer) {
+            observer.disconnect();
+        }
+        
+        // Tạo observer mới
+        observer = new MutationObserver(function(mutations) {
+            let shouldReinit = false;
+            
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            // Kiểm tra nếu node mới là alert
+                            if (node.matches && (
+                                node.matches('.alert') || 
+                                node.matches('[class*="alert-"]')
+                            )) {
+                                shouldReinit = true;
+                            }
+                            // Hoặc chứa alerts
+                            else if (node.querySelector && node.querySelector('.alert')) {
+                                shouldReinit = true;
+                            }
+                        }
+                    });
+                }
+            });
+            
+            if (shouldReinit) {
+                // Delay nhỏ để đảm bảo DOM đã ổn định
+                setTimeout(initializeAlerts, 100);
+            }
+        });
+        
+        // Bắt đầu observe với error handling
+        try {
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            console.log("MutationObserver started successfully");
+        } catch (error) {
+            console.error("Failed to start MutationObserver:", error);
+            // Retry sau 1 giây
+            setTimeout(setupMutationObserver, 1000);
+        }
+    }
+    
     // Khởi tạo khi DOM ready
     function onDOMReady() {
         console.log("DOM ready, initializing alerts");
+        
+        // Khởi tạo alerts hiện có
         initializeAlerts();
+        
+        // Thiết lập MutationObserver
+        setupMutationObserver();
     }
     
     // Chạy ngay nếu DOM đã sẵn sàng
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', onDOMReady);
     } else {
-        // DOM đã sẵn sàng, chạy ngay
-        onDOMReady();
+        // DOM đã sẵn sàng, nhưng vẫn cần delay một chút
+        setTimeout(onDOMReady, 100);
     }
     
-    // Observer cho alerts mới được thêm động
-    const observer = new MutationObserver(function(mutations) {
-        let shouldReinit = false;
-        
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'childList') {
-                mutation.addedNodes.forEach(function(node) {
-                    if (node.nodeType === Node.ELEMENT_NODE) {
-                        // Kiểm tra nếu node mới là alert
-                        if (node.matches && (
-                            node.matches('.alert') || 
-                            node.matches('[class*="alert-"]')
-                        )) {
-                            shouldReinit = true;
-                        }
-                        // Hoặc chứa alerts
-                        else if (node.querySelector && node.querySelector('.alert')) {
-                            shouldReinit = true;
-                        }
-                    }
-                });
+    // Fallback: Kiểm tra định kỳ nếu observer không hoạt động
+    let fallbackInterval = setInterval(function() {
+        if (document.body && document.readyState === 'complete') {
+            initializeAlerts();
+            // Dừng fallback sau khi observer đã hoạt động
+            if (observer) {
+                clearInterval(fallbackInterval);
             }
-        });
-        
-        if (shouldReinit) {
-            // Delay nhỏ để đảm bảo DOM đã ổn định
-            setTimeout(initializeAlerts, 100);
         }
-    });
-    
-    // Bắt đầu observe
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
+    }, 1000);
     
     // Thêm vào global scope để debug
     window.autoDismissAlerts = {
         reinitialize: initializeAlerts,
-        config: CONFIG
+        config: CONFIG,
+        observer: observer
     };
     
 })();
